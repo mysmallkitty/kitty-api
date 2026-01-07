@@ -1,0 +1,23 @@
+[project]
+name = "kitty-api"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "4vpr",email = "4shout4@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi[standard] (>=0.128.0,<0.129.0)",
+    "black (>=25.12.0,<26.0.0)",
+    "isort (>=7.0.0,<8.0.0)",
+    "mypy (>=1.19.1,<2.0.0)",
+    "passlib (>=1.7.4,<2.0.0)",
+    "tortoise-orm[asyncpg] (>=0.25.3,<0.26.0)",
+    "python-jose[cryptography] (>=3.5.0,<4.0.0)",
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
