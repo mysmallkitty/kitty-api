@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 from tortoise.contrib.pydantic import pydantic_model_creator, pydantic_queryset_creator
-from app.user.model import User, Friendship
+from app.user.models import User, Friendship
 
 UserOut = pydantic_model_creator(User, name="UserOut")
 

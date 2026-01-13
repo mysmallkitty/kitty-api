@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends , Body
 
 from fastapi.security import OAuth2PasswordRequestForm
-from app.user.model import User
+from app.user.models import User
 from app.user.service.token import create_access_token, create_refresh_token, decode_token, get_current_user
 from tortoise.exceptions import DoesNotExist
 import settings
@@ -9,7 +9,7 @@ from app.user.schemas.token import TokenResponse, TokenRefreshRequest
 from app.user.schemas.user import UserMe
 
 router = APIRouter(
-    prefix="/api/v1/users",
+    prefix="/api/v1/user",
     tags=["user"],
     responses={404: {"description": "Not found"}},
 )
