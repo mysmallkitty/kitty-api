@@ -8,12 +8,7 @@ from app.user.router import router as user_router
 from app.maps.router import router as maps_router
 from app.records.router import router as records_router
 
-MODELS = [
-    "aerich.models",
-    "app.user.models",
-    "app.maps.models",
-    "app.records.models",
-]
+MODELS = settings.TORTOISE_ORM["apps"]["models"]["models"]
 
 ROUTERS = [
     user_router,
