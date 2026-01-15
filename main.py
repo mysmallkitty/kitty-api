@@ -8,17 +8,14 @@ from app.user.router import router as user_router
 from app.maps.router import router as maps_router
 from app.records.router import router as records_router
 
-MODELS = settings.TORTOISE_ORM["apps"]["models"]["models"]
-
 ROUTERS = [
     user_router,
     maps_router,
     records_router,
 ]
 
-
 async def lifespan(app: FastAPI):
-    await Tortoise.init(db_url=settings.DB_URL, modules={"models": MODELS})
+    await Tortoise.init(config=settings.TORTOISE_ORM)
     yield
     await Tortoise.close_connections()
 
@@ -34,7 +31,7 @@ for router in ROUTERS:
 @app.route("/health")
 async def health_check():
     return {"status": "ok"}
-
+ 
 
 if __name__ == "__main__":
     uvicorn.run(

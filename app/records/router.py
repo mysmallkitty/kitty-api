@@ -1,10 +1,7 @@
-from fastapi import APIRouter, HTTPException, Depends, Body
-from datetime import date
-from typing import List, Dict, DefaultDict
-from collections import defaultdict
+from fastapi import APIRouter, HTTPException, Depends
 
 from app.maps.models import Map
-from app.records.models import Stat, Record
+from app.records.models import Stat
 from app.user.service.token import get_current_user
 
 router = APIRouter(
