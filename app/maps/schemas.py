@@ -9,13 +9,13 @@ class CreatorBase(BaseModel):
 
     @field_validator("creator", mode="before")
     @classmethod
-    def extract_nickname(cls, v):
-        return getattr(v, "nickname", "")
+    def extract_username(cls, v):
+        return getattr(v, "username", "")
 
 class MapListSchema(CreatorBase):
     id: int
     title: str
-    level: int
+    level: float
     thumbnail_url: str
     loved_count: int
     download_count: int
