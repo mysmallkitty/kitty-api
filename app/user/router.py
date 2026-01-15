@@ -1,8 +1,13 @@
-from fastapi import APIRouter, HTTPException, Depends , Body
+from fastapi import APIRouter, HTTPException, Depends, Body
 
 from fastapi.security import OAuth2PasswordRequestForm
 from app.user.models import User
-from app.user.service.token import create_access_token, create_refresh_token, decode_token, get_current_user
+from app.user.service.token import (
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    get_current_user,
+)
 from tortoise.exceptions import DoesNotExist
 import settings
 from app.user.schemas.token import TokenResponse, TokenRefreshRequest
@@ -13,6 +18,7 @@ router = APIRouter(
     tags=["user"],
     responses={404: {"description": "Not found"}},
 )
+
 
 @router.post("/login", response_model=TokenResponse)
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
@@ -29,9 +35,10 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in= settings.JWT_ACCESS_MINUTES * 60,
-        refresh_expires_in=settings.JWT_REFRESH_DAYS * 24 * 60 * 60
+        expires_in=settings.JWT_ACCESS_MINUTES * 60,
+        refresh_expires_in=settings.JWT_REFRESH_DAYS * 24 * 60 * 60,
     )
+
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_tokens(request: TokenRefreshRequest):
@@ -42,8 +49,9 @@ async def refresh_tokens(request: TokenRefreshRequest):
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in=settings.JWT_ACCESS_MINUTES * 60,
-        refresh_expires_in=settings.JWT_REFRESH_DAYS * 24 * 60 * 60
+        refresh_expires_in=settings.JWT_REFRESH_DAYS * 24 * 60 * 60,
     )
+
 
 @router.post("/me", response_model=UserMe)
 async def get_user(user: User = Depends(get_current_user)):

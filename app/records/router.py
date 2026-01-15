@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends , Body
+from fastapi import APIRouter, HTTPException, Depends, Body
 from datetime import date
 from typing import List, Dict, DefaultDict
 from collections import defaultdict
@@ -12,6 +12,7 @@ router = APIRouter(
     tags=["records"],
     responses={404: {"description": "Not found"}},
 )
+
 
 @router.post("/attempt/{map_id}")
 async def record_attempt(map_id: int, user=Depends(get_current_user)):
@@ -27,6 +28,7 @@ async def record_attempt(map_id: int, user=Depends(get_current_user)):
     await map.save()
 
     return {"message": "Attempt recorded"}
+
 
 @router.post("/death/{map_id}")
 async def record_death(map_id: int, user=Depends(get_current_user)):
@@ -44,4 +46,3 @@ async def record_death(map_id: int, user=Depends(get_current_user)):
     await map.save()
 
     return {"message": "Death recorded"}
-                       
