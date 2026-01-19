@@ -10,7 +10,7 @@ async def get_filtered_maps(params: MapFilterParams):
     if params.title:
         query = query.filter(title__icontains=params.title.strip())
     if params.creator:
-        query = query.filter(creator__nickname__icontains=params.creator.strip())
+        query = query.filter(creator__username__icontains=params.creator.strip())
 
     sort_map = {
         "latest": "-id",
