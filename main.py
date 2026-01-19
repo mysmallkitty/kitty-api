@@ -1,18 +1,18 @@
 import uvicorn
+from fastapi import FastAPI
 from tortoise import Tortoise
 
-from fastapi import FastAPI
-
 import settings
-from app.user.router import router as user_router
 from app.maps.router import router as maps_router
 from app.records.router import router as records_router
+from app.user.router import router as user_router
 
 ROUTERS = [
     user_router,
     maps_router,
     records_router,
 ]
+
 
 async def lifespan(app: FastAPI):
     await Tortoise.init(config=settings.TORTOISE_ORM)
@@ -31,7 +31,7 @@ for router in ROUTERS:
 @app.route("/health")
 async def health_check():
     return {"status": "ok"}
- 
+
 
 if __name__ == "__main__":
     uvicorn.run(

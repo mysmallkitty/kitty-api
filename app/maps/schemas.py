@@ -1,7 +1,7 @@
 from datetime import datetime
-
-from pydantic import BaseModel, field_validator, computed_field, Field, HttpUrl
 from typing import List, Optional
+
+from pydantic import BaseModel, Field, HttpUrl, computed_field, field_validator
 
 
 class CreatorBase(BaseModel):
@@ -12,6 +12,7 @@ class CreatorBase(BaseModel):
     def extract_username(cls, v):
         return getattr(v, "username", "")
 
+
 class MapListSchema(CreatorBase):
     id: int
     title: str
@@ -20,12 +21,14 @@ class MapListSchema(CreatorBase):
     loved_count: int
     download_count: int
 
+
 class MapStatsSchema(BaseModel):
     total_attempts: int
     total_deaths: int
     total_clears: int
     loved_count: int
     download_count: int
+
 
 class MapDetailSchema(MapStatsSchema, CreatorBase):
     model_config = {"from_attributes": True}
@@ -41,12 +44,14 @@ class MapDetailSchema(MapStatsSchema, CreatorBase):
     created_at: datetime
     updated_at: datetime
 
+
 class MapCreateSchema(BaseModel):
     title: str = Field(..., max_length=50)
     detail: str = Field(..., max_length=500)
     level: float = Field(..., ge=1, le=10)
     thumbnail_url: HttpUrl | None
     map_url: HttpUrl
+
 
 class MapUpdateSchema(BaseModel):
     title: Optional[str] = Field(None, max_length=50)

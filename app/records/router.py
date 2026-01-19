@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from tortoise.expressions import F
+from tortoise.transactions import in_transaction
+
 from app.maps.dependencies import get_valid_map
 from app.maps.models import Map
 from app.records.models import Stat
 from app.user.service.token import get_current_user
-from tortoise.transactions import in_transaction
 
 router = APIRouter(
     prefix="/api/v1/records",
@@ -46,33 +47,29 @@ async def record_death(map_id: int, user=Depends(get_current_user)):
 
     return {"message": "Death recorded"}
 
+
 # 맵 좋아요
 @router.post("/like/{map_id}")
 async def toggle_like(
-    map_obj: Map = Depends(get_valid_map),
-    user=Depends(get_current_user)
+    map_obj: Map = Depends(get_valid_map), user=Depends(get_current_user)
 ):
     async with in_transaction():
         map_obj = await Map.select_for_update().get(id=map_obj.id)
         stat, created = await Stat.get_or_create(
-            user=user,
-            map=map_obj,
-            defaults={"is_loved": True}
+            user=user, map=map_obj, defaults={"is_loved": True}
         )
-        
+
         if created or not stat.is_loved:
             stat.is_loved = True
             is_loved = True
-            await Map.filter(id=map_obj.id).update(
-                loved_count=F("loved_count") + 1
-            )
+            await Map.filter(id=map_obj.id).update(loved_count=F("loved_count") + 1)
         else:
             stat.is_loved = False
             is_loved = False
             await Map.filter(id=map_obj.id, loved_count__gt=0).update(
                 loved_count=F("loved_count") - 1
             )
-        
+
         await stat.save()
 
     return {

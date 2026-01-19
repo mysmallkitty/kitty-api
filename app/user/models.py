@@ -1,9 +1,9 @@
+import typing
 from hashlib import sha256
 
 from passlib.context import CryptContext
 from tortoise import fields
 from tortoise.models import Model
-import typing
 
 from settings import PASSWORD_SALT
 

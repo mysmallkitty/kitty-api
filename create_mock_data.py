@@ -1,18 +1,20 @@
-from dotenv import load_dotenv
-from tortoise import Tortoise
 import asyncio
-import settings
-
 import random
 
-from app.user.models import Friendship, User, Roles
+from dotenv import load_dotenv
+from tortoise import Tortoise
+
+import settings
 from app.maps.models import Map
+from app.user.models import Friendship, Roles, User
 
 load_dotenv()
 
+
 async def create_mock_data():
     import os
-    await Tortoise.init(config=settings.TORTOISE_ORM) 
+
+    await Tortoise.init(config=settings.TORTOISE_ORM)
     await Tortoise.generate_schemas()
 
     print("🗑️  기존 데이터 삭제 중...")
@@ -32,7 +34,7 @@ async def create_mock_data():
         level=99,
         exp=999999,
         country="KR",
-        skill_level=10.0
+        skill_level=10.0,
     )
     admin.set_password("admin123")
     await admin.save()
@@ -46,7 +48,7 @@ async def create_mock_data():
         level=50,
         exp=50000,
         country="KR",
-        skill_level=8.5
+        skill_level=8.5,
     )
     mod.set_password("mod123")
     await mod.save()
@@ -65,7 +67,7 @@ async def create_mock_data():
             total_deaths=random.randint(100, 10000),
             total_attempts=random.randint(200, 15000),
             total_clears=random.randint(50, 5000),
-            skill_level=round(random.uniform(0.5, 7.0), 1)
+            skill_level=round(random.uniform(0.5, 7.0), 1),
         )
         user.set_password(f"password{i}")
         await user.save()
@@ -108,7 +110,7 @@ async def create_mock_data():
             total_attempts=random.randint(1000, 100000),
             total_clears=random.randint(100, 20000),
             loved_count=random.randint(0, 500),
-            download_count=random.randint(10, 5000)
+            download_count=random.randint(10, 5000),
         )
         maps.append(map_obj)
 
@@ -117,7 +119,9 @@ async def create_mock_data():
     print("🤝 친구 관계 생성 중...")
     friendships = 0
     for user in users[:10]:  # 처음 10명만
-        friends_to_add = random.sample([u for u in users if u.id != user.id], k=random.randint(2, 5))
+        friends_to_add = random.sample(
+            [u for u in users if u.id != user.id], k=random.randint(2, 5)
+        )
         for friend in friends_to_add:
             await Friendship.create(user=user, friend=friend)
             friendships += 1

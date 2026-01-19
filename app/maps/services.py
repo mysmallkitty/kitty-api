@@ -1,11 +1,15 @@
 from tortoise.expressions import F
-from app.maps.models import Map
+
 from app.maps.dependencies import MapFilterParams
+from app.maps.models import Map
+
 
 async def get_filtered_maps(params: MapFilterParams):
-    query = Map.all().only(
-        "id", "title", "level", "thumbnail_url", "loved_count", "download_count"
-    ).prefetch_related("creator")
+    query = (
+        Map.all()
+        .only("id", "title", "level", "thumbnail_url", "loved_count", "download_count")
+        .prefetch_related("creator")
+    )
 
     if params.title:
         query = query.filter(title__icontains=params.title.strip())
@@ -16,7 +20,7 @@ async def get_filtered_maps(params: MapFilterParams):
         "latest": "-id",
         "downloads": "-download_count",
         "difficulty": "-level",
-        "loved": "-loved_count"
+        "loved": "-loved_count",
     }
     query = query.order_by(sort_map.get(params.sort, "-id"))
 

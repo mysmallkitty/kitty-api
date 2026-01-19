@@ -15,7 +15,7 @@ class Stat(Model):
     updated_at = fields.DatetimeField(auto_now=True)
 
     class Meta:
-        unique_together = ("user", "map") 
+        unique_together = ("user", "map")
 
 
 class Record(Model):
