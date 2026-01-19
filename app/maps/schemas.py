@@ -60,3 +60,17 @@ class MapUpdateSchema(BaseModel):
     thumbnail_url: Optional[HttpUrl] = None
     file_url: Optional[HttpUrl] = None
     is_wip: Optional[bool] = None
+
+
+# 내 맵 조회용
+class UserMapItemSchema(BaseModel):
+    id: int
+    title: str
+    level: float
+    thumbnail_url: HttpUrl | None
+    loved_count: int
+    download_count: int
+
+class UserMapsListSchema(BaseModel):
+    id: int
+    maps: list[UserMapItemSchema]

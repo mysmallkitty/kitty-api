@@ -2,6 +2,8 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from tortoise.exceptions import DoesNotExist
 
+from app.maps.models import Map
+from app.maps.schemas import MyMapsListSchema, UserMapsListSchema
 import settings
 from app.user.models import User
 from app.user.schemas.token import TokenRefreshRequest, TokenResponse
@@ -52,3 +54,12 @@ async def refresh_tokens(request: TokenRefreshRequest):
 @router.post("/me", response_model=UserMe)
 async def get_user(user: User = Depends(get_current_user)):
     return await UserMe.from_user(user)
+
+@router.get("/me/maps", response_model=UserMapsListSchema)
+async def get_my_maps(current_user: User = Depends(get_current_user)):
+    maps = await Map.filter(creator=current_user).all()
+    return {
+        "id": current_user.id,
+        "maps": maps
+    }
+
