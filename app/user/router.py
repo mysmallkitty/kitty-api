@@ -7,9 +7,10 @@ from app.maps.schemas import MyMapsListSchema, UserMapsListSchema
 import settings
 from app.user.models import User
 from app.user.schemas.token import TokenRefreshRequest, TokenResponse
-from app.user.schemas.user import UserMe
+from app.user.schemas.user import UserMe, UserOut, UserUpdateSchema
 from app.user.service.token import (create_access_token, create_refresh_token,
                                     decode_token, get_current_user)
+from app.user.service.auth import update_user
 
 router = APIRouter(
     prefix="/api/v1/user",
@@ -50,11 +51,23 @@ async def refresh_tokens(request: TokenRefreshRequest):
         refresh_expires_in=settings.JWT_REFRESH_DAYS * 24 * 60 * 60,
     )
 
-
+# 내 정보 조회
 @router.post("/me", response_model=UserMe)
 async def get_user(user: User = Depends(get_current_user)):
     return await UserMe.from_user(user)
 
+
+# 내 정보 수정
+@router.patch("/me", response_model=UserOut)
+async def update_user_profile(
+    user_data: UserUpdateSchema,
+    current_user: User = Depends(get_current_user)
+):
+    update_dict = user_data.model_dump(exclude_unset=True)
+    updated_user = await update_user(current_user, update_dict)
+    return updated_user
+
+# 내 맵 목록 조회
 @router.get("/me/maps", response_model=UserMapsListSchema)
 async def get_my_maps(current_user: User = Depends(get_current_user)):
     maps = await Map.filter(creator=current_user).all()

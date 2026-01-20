@@ -44,7 +44,7 @@ class MapDetailSchema(MapStatsSchema, CreatorBase):
     created_at: datetime
     updated_at: datetime
 
-
+# 맵 등록
 class MapCreateSchema(BaseModel):
     title: str = Field(..., max_length=50)
     detail: str = Field(..., max_length=500)
@@ -52,7 +52,7 @@ class MapCreateSchema(BaseModel):
     thumbnail_url: HttpUrl | None
     map_url: HttpUrl
 
-
+# 맵 정보 수정
 class MapUpdateSchema(BaseModel):
     title: Optional[str] = Field(None, max_length=50)
     detail: Optional[str] = None
@@ -62,7 +62,7 @@ class MapUpdateSchema(BaseModel):
     is_wip: Optional[bool] = None
 
 
-# 내 맵 조회용
+# 내 맵 조회
 class UserMapItemSchema(BaseModel):
     id: int
     title: str

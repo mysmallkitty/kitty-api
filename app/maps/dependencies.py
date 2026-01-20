@@ -26,7 +26,7 @@ async def get_valid_map_with_creator(map_id: int):
     map_obj = await Map.get_or_none(id=map_id).prefetch_related("creator")
 
     if not map_obj:
-        raise HTTPException(status_code=404, detail="맵을 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Map not found.")
 
     return map_obj
 
@@ -34,5 +34,5 @@ async def get_valid_map_with_creator(map_id: int):
 async def get_valid_map(map_id: int) -> Map:
     map_obj = await Map.only("id", "title").get_or_none(id=map_id)
     if not map_obj:
-        raise HTTPException(status_code=404, detail="맵을 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Map not found.")
     return map_obj

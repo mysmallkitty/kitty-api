@@ -3,13 +3,12 @@ from typing import Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse
 from tortoise.exceptions import IntegrityError
 from tortoise.expressions import F
 
 import app.maps.services as service
 from app.maps.dependencies import (MapFilterParams, get_valid_map,
-                                   get_valid_map_id,
                                    get_valid_map_with_creator)
 from app.maps.models import Map
 from app.maps.schemas import (MapCreateSchema, MapDetailSchema, MapListSchema,
@@ -47,7 +46,7 @@ async def create_map(
             creator=current_user,
         )
     except IntegrityError:
-        raise HTTPException(status_code=400, detail="중복된 제목입니다.")
+        raise HTTPException(status_code=400, detail="Already In Use Title.")
 
     return new_map
 
@@ -66,7 +65,7 @@ async def update_map(
     map_obj: Map = Depends(get_valid_map_with_creator),
 ):
     if map_obj.creator.id != current_user.id:
-        raise HTTPException(status_code=403, detail="권한이 없습니다.")
+        raise HTTPException(status_code=403, detail="Have No Permission.")
 
     update_data = map_data.model_dump(exclude_unset=True)
 
@@ -74,7 +73,7 @@ async def update_map(
         await map_obj.update_from_dict(update_data)
         await map_obj.save()
     except IntegrityError:
-        raise HTTPException(status_code=400, detail="이미 존재하는 제목입니다.")
+        raise HTTPException(status_code=400, detail="Already In Use Title.")
 
     return map_obj
 
@@ -85,7 +84,7 @@ async def download_map(map_obj: Map = Depends(get_valid_map)):
 
     if not os.path.exists(map_obj.map_url):
         raise HTTPException(
-            status_code=404, detail="실제 파일이 서버에 존재하지 않습니다."
+            status_code=404, detail="Map not found."
         )
 
     await Map.filter(id=map_obj.id).update(download_count=F("download_count") + 1)
