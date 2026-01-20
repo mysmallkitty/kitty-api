@@ -2,7 +2,7 @@ from fastapi import HTTPException
 from app.user.models import User
 
 
-async def validate_username_unique(username: str, current_user_id: int):
+async def validate_username_unique(username: str, current_user_id: int = None):
     existing = await User.get_or_none(username=username)
     if existing and existing.id != current_user_id:
         raise HTTPException(status_code=400, detail="Already In Use Username.")

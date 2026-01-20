@@ -32,7 +32,7 @@ async def get_valid_map_with_creator(map_id: int):
 
 
 async def get_valid_map(map_id: int) -> Map:
-    map_obj = await Map.only("id", "title").get_or_none(id=map_id)
+    map_obj = await Map.filter(id=map_id).only("id", "title", "map_url").first()
     if not map_obj:
         raise HTTPException(status_code=404, detail="Map not found.")
     return map_obj

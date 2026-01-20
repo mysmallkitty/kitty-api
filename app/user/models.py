@@ -29,7 +29,7 @@ class User(Model):
     username = fields.CharField(max_length=50, unique=True)
     password = fields.CharField(max_length=255)
     email = fields.CharField(max_length=100)
-    profile_img_url = fields.CharField(max_length=255)
+    profile_img_url = fields.CharField(max_length=255, null=True)
     level = fields.IntField(default=1)
     exp = fields.IntField(default=0)
     country = fields.CharField(max_length=3, null=True)

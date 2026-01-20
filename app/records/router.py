@@ -21,7 +21,7 @@ async def record_attempt(map_id: int, user=Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Map not found")
 
     stat, _ = await Stat.get_or_create(user=user, map=map)
-    stat.total_attempts += 1
+    stat.attempts += 1
     await stat.save()
 
     map.total_attempts += 1
@@ -37,8 +37,8 @@ async def record_death(map_id: int, user=Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Map not found")
 
     stat, _ = await Stat.get_or_create(user=user, map=map)
-    stat.total_deaths += 1
-    stat.total_attempts += 1
+    stat.deaths += 1
+    stat.attempts += 1
     await stat.save()
 
     map.total_deaths += 1
