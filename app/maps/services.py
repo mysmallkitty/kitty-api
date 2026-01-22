@@ -7,7 +7,15 @@ from app.maps.models import Map
 async def get_filtered_maps(params: MapFilterParams):
     query = (
         Map.all()
-        .only("id", "creator_id", "title", "level", "thumbnail_url", "loved_count", "download_count")
+        .only(
+            "id",
+            "creator_id",
+            "title",
+            "level",
+            "thumbnail_url",
+            "loved_count",
+            "download_count",
+        )
         .prefetch_related("creator")
     )
 

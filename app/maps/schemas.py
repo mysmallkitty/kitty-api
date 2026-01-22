@@ -13,19 +13,16 @@ class CreatorBase(BaseModel):
         return getattr(v, "username", "")
 
 
-class MapListSchema(CreatorBase):
+class MapListSchema(BaseModel):
     id: int
     title: str
-    level: float
+    level: int
+    is_ranked: bool
     thumbnail_url: HttpUrl
-    loved_count: int
-    download_count: int
 
 
 class MapStatsSchema(BaseModel):
-    total_attempts: int
     total_deaths: int
-    total_clears: int
     loved_count: int
     download_count: int
 
@@ -36,7 +33,7 @@ class MapDetailSchema(MapStatsSchema, CreatorBase):
     id: int
     title: str
     detail: str
-    level: float
+    level: int
     map_url: HttpUrl
     thumbnail_url: HttpUrl | None
     is_ranked: bool
@@ -44,19 +41,21 @@ class MapDetailSchema(MapStatsSchema, CreatorBase):
     created_at: datetime
     updated_at: datetime
 
+
 # 맵 등록
 class MapCreateSchema(BaseModel):
     title: str = Field(..., max_length=50)
     detail: str = Field(..., max_length=500)
-    level: float = Field(..., ge=1, le=10)
+    level: int = Field(..., ge=1, le=8)
     thumbnail_url: HttpUrl | None
     map_url: HttpUrl
+
 
 # 맵 정보 수정
 class MapUpdateSchema(BaseModel):
     title: Optional[str] = Field(None, max_length=50)
     detail: Optional[str] = None
-    level: Optional[float] = Field(None, ge=1, le=10)
+    level: Optional[int] = Field(None, ge=1, le=8)
     thumbnail_url: Optional[HttpUrl] = None
     file_url: Optional[HttpUrl] = None
     is_wip: Optional[bool] = None
@@ -66,11 +65,55 @@ class MapUpdateSchema(BaseModel):
 class UserMapItemSchema(BaseModel):
     id: int
     title: str
-    level: float
+    level: int
     thumbnail_url: HttpUrl | None
     loved_count: int
     download_count: int
 
+
 class UserMapsListSchema(BaseModel):
     id: int
     maps: list[UserMapItemSchema]
+
+
+# 맵 리더보드 상위 20 명
+
+
+class LeaderboardEntrySchema(BaseModel):
+    model_config = {"from_attributes": True}
+
+    rank: int = 0
+    user_id: int
+    username: str
+    deaths: int
+    clear_time: float
+    created_at: datetime
+
+    @field_validator("username", mode="before")
+    @classmethod
+    def extract_username(cls, v):
+        if hasattr(v, "username"):
+            return v.username
+        return v
+
+    @field_validator("user_id", mode="before")
+    @classmethod
+    def extract_user_id(cls, v):
+        if hasattr(v, "id"):
+            return v.id
+        return v
+
+
+class MapLeaderboardSchema(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    title: str
+    creator: str
+    level: float
+    leaderboard: list[LeaderboardEntrySchema]
+
+    @field_validator("creator", mode="before")
+    @classmethod
+    def extract_username(cls, v):
+        return getattr(v, "username", "")

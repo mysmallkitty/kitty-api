@@ -1,4 +1,5 @@
 from typing import Optional
+
 from pydantic import BaseModel, EmailStr, Field
 from tortoise.contrib.pydantic import (pydantic_model_creator,
                                        pydantic_queryset_creator)
@@ -21,12 +22,14 @@ class UserMe(UserOut):
             {**base.model_dump(), "friend_count": friend_count, "rank": rank}
         )
 
+
 class UserRegisterSchema(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=8)
     email: EmailStr
     profile_img_url: Optional[str] = Field(None, max_length=255)
     country: Optional[str] = Field(None, max_length=3)
+
 
 class UserUpdateSchema(BaseModel):
     username: Optional[str] = Field(None, max_length=50)

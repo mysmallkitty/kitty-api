@@ -8,7 +8,7 @@ class Map(Model):
     id = fields.IntField(pk=True)
     title = fields.CharField(max_length=50, unique=True)
     detail = fields.TextField()
-    level = fields.FloatField(default=1)
+    level = fields.IntField(default=1)
     creator = fields.ForeignKeyField("models.User", related_name="maps")
 
     # status

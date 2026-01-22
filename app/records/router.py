@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from tortoise.expressions import F
 from tortoise.transactions import in_transaction
 
-from app.maps.dependencies import get_valid_map
+from app.maps.dependencies import get_valid_map, get_valid_map_with_creator
 from app.maps.models import Map
-from app.records.models import Stat
+from app.records.models import Record, Stat
 from app.user.service.token import get_current_user
 
 router = APIRouter(
@@ -14,7 +14,7 @@ router = APIRouter(
 )
 
 
-@router.post("/attempt/{map_id}")
+@router.post("/{map_id}/attempt")
 async def record_attempt(map_id: int, user=Depends(get_current_user)):
     map = await Map.get_or_none(id=map_id)
     if not map:
@@ -30,7 +30,7 @@ async def record_attempt(map_id: int, user=Depends(get_current_user)):
     return {"message": "Attempt recorded"}
 
 
-@router.post("/death/{map_id}")
+@router.post("/{map_id}/death")
 async def record_death(map_id: int, user=Depends(get_current_user)):
     map = await Map.get_or_none(id=map_id)
     if not map:
@@ -49,7 +49,7 @@ async def record_death(map_id: int, user=Depends(get_current_user)):
 
 
 # 맵 좋아요
-@router.post("/like/{map_id}")
+@router.post("/{map_id}/like")
 async def toggle_like(
     map_obj: Map = Depends(get_valid_map), user=Depends(get_current_user)
 ):

@@ -11,8 +11,10 @@ import app.maps.services as service
 from app.maps.dependencies import (MapFilterParams, get_valid_map,
                                    get_valid_map_with_creator)
 from app.maps.models import Map
-from app.maps.schemas import (MapCreateSchema, MapDetailSchema, MapListSchema,
-                              MapUpdateSchema)
+from app.maps.schemas import (LeaderboardEntrySchema, MapCreateSchema,
+                              MapDetailSchema, MapLeaderboardSchema,
+                              MapListSchema, MapUpdateSchema)
+from app.records.models import Record
 from app.user.models import User
 from app.user.service.token import get_current_user
 
@@ -83,9 +85,7 @@ async def update_map(
 async def download_map(map_obj: Map = Depends(get_valid_map)):
 
     if not os.path.exists(map_obj.map_url):
-        raise HTTPException(
-            status_code=404, detail="Map not found."
-        )
+        raise HTTPException(status_code=404, detail="Map not found.")
 
     await Map.filter(id=map_obj.id).update(download_count=F("download_count") + 1)
     safe_filename = quote(f"{map_obj.title}.map")
@@ -97,3 +97,25 @@ async def download_map(map_obj: Map = Depends(get_valid_map)):
             "Content-Disposition": f"attachment; filename*=UTF-8''{safe_filename}"
         },
     )
+
+
+# 맵 리더보드 상위 20명 뽑기
+@router.get("/{map_id}/leaderboard", response_model=MapLeaderboardSchema)
+async def get_map_leaderboard(map_obj: Map = Depends(get_valid_map_with_creator)):
+
+    records = await (
+        Record.filter(map_id=map_obj.id, clear_time__not_isnull=True)
+        .prefetch_related("user")
+        .order_by("clear_time")
+        .limit(20)
+    )
+
+    leaderboard = []
+    for rank, record in enumerate(records, start=1):
+        entry = LeaderboardEntrySchema.model_validate(record)
+        entry.rank = rank
+        leaderboard.append(entry)
+
+    map_obj.leaderboard = leaderboard
+
+    return map_obj
