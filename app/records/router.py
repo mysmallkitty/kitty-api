@@ -14,38 +14,38 @@ router = APIRouter(
 )
 
 
-@router.post("/{map_id}/attempt")
-async def record_attempt(map_id: int, user=Depends(get_current_user)):
-    map = await Map.get_or_none(id=map_id)
-    if not map:
-        raise HTTPException(status_code=404, detail="Map not found")
+# @router.post("/{map_id}/attempt")
+# async def record_attempt(map_id: int, user=Depends(get_current_user)):
+#     map = await Map.get_or_none(id=map_id)
+#     if not map:
+#         raise HTTPException(status_code=404, detail="Map not found")
 
-    stat, _ = await Stat.get_or_create(user=user, map=map)
-    stat.attempts += 1
-    await stat.save()
+#     stat, _ = await Stat.get_or_create(user=user, map=map)
+#     stat.attempts += 1
+#     await stat.save()
 
-    map.total_attempts += 1
-    await map.save()
+#     map.total_attempts += 1
+#     await map.save()
 
-    return {"message": "Attempt recorded"}
+#     return {"message": "Attempt recorded"}
 
 
-@router.post("/{map_id}/death")
-async def record_death(map_id: int, user=Depends(get_current_user)):
-    map = await Map.get_or_none(id=map_id)
-    if not map:
-        raise HTTPException(status_code=404, detail="Map not found")
+# @router.post("/{map_id}/death")
+# async def record_death(map_id: int, user=Depends(get_current_user)):
+#     map = await Map.get_or_none(id=map_id)
+#     if not map:
+#         raise HTTPException(status_code=404, detail="Map not found")
 
-    stat, _ = await Stat.get_or_create(user=user, map=map)
-    stat.deaths += 1
-    stat.attempts += 1
-    await stat.save()
+#     stat, _ = await Stat.get_or_create(user=user, map=map)
+#     stat.deaths += 1
+#     stat.attempts += 1
+#     await stat.save()
 
-    map.total_deaths += 1
-    map.total_attempts += 1
-    await map.save()
+#     map.total_deaths += 1
+#     map.total_attempts += 1
+#     await map.save()
 
-    return {"message": "Death recorded"}
+#     return {"message": "Death recorded"}
 
 
 # 맵 좋아요
@@ -54,7 +54,6 @@ async def toggle_like(
     map_obj: Map = Depends(get_valid_map), user=Depends(get_current_user)
 ):
     async with in_transaction():
-        map_obj = await Map.select_for_update().get(id=map_obj.id)
         stat, created = await Stat.get_or_create(
             user=user, map=map_obj, defaults={"is_loved": True}
         )

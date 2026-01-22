@@ -15,6 +15,7 @@ async def get_filtered_maps(params: MapFilterParams):
             "thumbnail_url",
             "loved_count",
             "download_count",
+            "is_ranked",
         )
         .prefetch_related("creator")
     )

@@ -13,18 +13,22 @@ class CreatorBase(BaseModel):
         return getattr(v, "username", "")
 
 
-class MapListSchema(BaseModel):
+class MapListSchema(CreatorBase):
     id: int
     title: str
     level: int
     is_ranked: bool
     thumbnail_url: HttpUrl
+    loved_count: int 
+    download_count: int
 
 
 class MapStatsSchema(BaseModel):
     total_deaths: int
     loved_count: int
     download_count: int
+    total_attempts: int
+    total_clears: int
 
 
 class MapDetailSchema(MapStatsSchema, CreatorBase):
@@ -77,8 +81,6 @@ class UserMapsListSchema(BaseModel):
 
 
 # 맵 리더보드 상위 20 명
-
-
 class LeaderboardEntrySchema(BaseModel):
     model_config = {"from_attributes": True}
 
@@ -86,7 +88,7 @@ class LeaderboardEntrySchema(BaseModel):
     user_id: int
     username: str
     deaths: int
-    clear_time: float
+    clear_time: int
     created_at: datetime
 
     @field_validator("username", mode="before")
@@ -110,7 +112,7 @@ class MapLeaderboardSchema(BaseModel):
     id: int
     title: str
     creator: str
-    level: float
+    level: int
     leaderboard: list[LeaderboardEntrySchema]
 
     @field_validator("creator", mode="before")
