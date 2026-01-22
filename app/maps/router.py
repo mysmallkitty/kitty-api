@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from tortoise.exceptions import IntegrityError
 from tortoise.expressions import F
 
+from app import records
 import app.maps.services as service
 from app.maps.dependencies import (MapFilterParams, get_valid_map,
                                    get_valid_map_with_creator)
@@ -102,7 +103,6 @@ async def download_map(map_obj: Map = Depends(get_valid_map)):
 # 맵 리더보드 상위 20명 뽑기
 @router.get("/{map_id}/leaderboard", response_model=MapLeaderboardSchema)
 async def get_map_leaderboard(map_obj: Map = Depends(get_valid_map_with_creator)):
-
     records = await (
         Record.filter(map_id=map_obj.id, clear_time__not_isnull=True)
         .prefetch_related("user")
@@ -110,12 +110,4 @@ async def get_map_leaderboard(map_obj: Map = Depends(get_valid_map_with_creator)
         .limit(20)
     )
 
-    leaderboard = []
-    for rank, record in enumerate(records, start=1):
-        entry = LeaderboardEntrySchema.model_validate(record)
-        entry.rank = rank
-        leaderboard.append(entry)
-
-    map_obj.leaderboard = leaderboard
-
-    return map_obj
+    return MapLeaderboardSchema.from_map_records(map_obj, records)

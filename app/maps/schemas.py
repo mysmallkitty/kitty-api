@@ -1,20 +1,13 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, HttpUrl, computed_field, field_validator
+from pydantic import AliasPath, BaseModel, Field, HttpUrl
 
 
-class CreatorBase(BaseModel):
-    creator: str
-
-    @field_validator("creator", mode="before")
-    @classmethod
-    def extract_username(cls, v):
-        return getattr(v, "username", "")
-
-
-class MapListSchema(CreatorBase):
+class MapListSchema(BaseModel):
+    model_config = {"from_attributes": True}
     id: int
+    creator: str = Field(validation_alias=AliasPath("creator", "username"))
     title: str
     level: int
     is_ranked: bool
@@ -23,25 +16,12 @@ class MapListSchema(CreatorBase):
     download_count: int
 
 
-class MapStatsSchema(BaseModel):
+class MapDetailSchema(MapListSchema):
+    detail: str
+    map_url: HttpUrl
     total_deaths: int
-    loved_count: int
-    download_count: int
     total_attempts: int
     total_clears: int
-
-
-class MapDetailSchema(MapStatsSchema, CreatorBase):
-    model_config = {"from_attributes": True}
-
-    id: int
-    title: str
-    detail: str
-    level: int
-    map_url: HttpUrl
-    thumbnail_url: HttpUrl | None
-    is_ranked: bool
-    is_wip: bool
     created_at: datetime
     updated_at: datetime
 
@@ -82,40 +62,41 @@ class UserMapsListSchema(BaseModel):
 
 # 맵 리더보드 상위 20 명
 class LeaderboardEntrySchema(BaseModel):
-    model_config = {"from_attributes": True}
+    model_config = {
+        "from_attributes": True,
+        "populate_by_name": True 
+    }
 
     rank: int = 0
-    user_id: int
-    username: str
+    user_id: int = Field(validation_alias=AliasPath("user", "id"))
+    username: str = Field(validation_alias=AliasPath("user", "username"))
     deaths: int
     clear_time: int
     created_at: datetime
-
-    @field_validator("username", mode="before")
-    @classmethod
-    def extract_username(cls, v):
-        if hasattr(v, "username"):
-            return v.username
-        return v
-
-    @field_validator("user_id", mode="before")
-    @classmethod
-    def extract_user_id(cls, v):
-        if hasattr(v, "id"):
-            return v.id
-        return v
-
 
 class MapLeaderboardSchema(BaseModel):
     model_config = {"from_attributes": True}
 
     id: int
     title: str
-    creator: str
+    creator: str = Field(validation_alias=AliasPath("creator", "username"))
     level: int
     leaderboard: list[LeaderboardEntrySchema]
 
-    @field_validator("creator", mode="before")
     @classmethod
-    def extract_username(cls, v):
-        return getattr(v, "username", "")
+    def from_map_records(cls, map_obj, records):
+        leaderboard_data = [
+            LeaderboardEntrySchema(
+                rank=i,
+                user_id=r.user.id,
+                username=r.user.username,
+                deaths=r.deaths,
+                clear_time=r.clear_time,
+                created_at=r.created_at
+            )
+            for i, r in enumerate(records, start=1)
+        ]
+        
+        map_obj.leaderboard = leaderboard_data
+        
+        return cls.model_validate(map_obj)
