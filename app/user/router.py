@@ -28,10 +28,10 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     try:
         user: User = await User.get(username=form_data.username)
     except DoesNotExist:
-        raise HTTPException(status_code=400, detail="Invalid login ID or password")
+        raise HTTPException(status_code=400, detail="Invalid Username")
 
     if not user.verify_password(form_data.password):
-        raise HTTPException(status_code=400, detail="Invalid login ID or password")
+        raise HTTPException(status_code=400, detail="Wrong Password")
 
     access_token = create_access_token(user.id)
     refresh_token = create_refresh_token(user.id)

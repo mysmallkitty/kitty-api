@@ -9,11 +9,9 @@ class MapListSchema(BaseModel):
     id: int
     creator: str = Field(validation_alias=AliasPath("creator", "username"))
     title: str
-    level: float
+    rating: float
     is_ranked: bool
-    preview: str | None
-    loved_count: int 
-    download_count: int
+    loved_count: int
 
 
 class MapDetailSchema(MapListSchema):
@@ -22,45 +20,24 @@ class MapDetailSchema(MapListSchema):
     total_deaths: int
     total_attempts: int
     total_clears: int
+    rating: float
     created_at: datetime
     updated_at: datetime
+    loved_count: int
 
 
 # 맵 등록
 class MapCreateSchema(BaseModel):
     title: str = Field(..., max_length=50)
-    detail: str = Field(..., max_length=500)
-    level: float = Field(..., ge=1.0, le=8.0)
-    preview: str | None
-    map_url: HttpUrl
+    detail: str = Field(..., max_length=100)
+    rating: float = Field(..., ge=1.0, le=8.0)
 
 
 # 맵 정보 수정
 class MapUpdateSchema(BaseModel):
     title: Optional[str] = Field(None, max_length=50)
     detail: Optional[str] = None
-    level: Optional[float] = Field(None, ge=1.0, le=8.0)
-    preview: Optional[str] = None
-    map_url: Optional[HttpUrl] = None
-    is_wip: Optional[bool] = None
-
-
-# 내 맵 조회
-class UserMapItemSchema(BaseModel):
-    model_config = {"from_attributes": True}
-
-    id: int
-    title: str
-    level: float
-    preview: str | None
-    loved_count: int
-    download_count: int
-
-
-class UserMapsListSchema(BaseModel):
-    id: int
-    maps: list[UserMapItemSchema]
-
+    rating: Optional[float] = Field(None, ge=1.0, le=8.0)
 
 # 맵 리더보드 상위 20 명
 class LeaderboardEntrySchema(BaseModel):
