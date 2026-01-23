@@ -43,11 +43,11 @@ class PositionMessage(BaseModel):
 class DeathMessage(BaseModel):
     type: Literal["death"]
 
-
-class ClearMessage(BaseModel):
-    type: Literal["clear"]
-
 class GhostPositionMessage(BaseModel):
     type: Literal["ghost_position"] = "ghost_position"
     user_id: int
     pos: PositionData
+
+
+class GameClearRequest(BaseModel):
+    session_id: str

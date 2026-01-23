@@ -8,11 +8,9 @@ from pydantic import ValidationError
 
 from app.play.schemas import (
     DeathAck,
-    ClearSuccess,
     PositionMessage,
     DeathMessage,
     GhostPositionMessage,
-    ClearMessage,
 )
 
 # 로거 설정
@@ -88,7 +86,7 @@ class GameWebSocketManager:
                         await ws.send_json(message)
                     except Exception as e:
                         logger.warning(f"Broadcast failed: {other_session_id}, {e}")
-                        manager.disconnect(other_session_id)
+                        self.disconnect(other_session_id)
 
     def get_session(self, session_id: str) -> GameSession | None:
         return self.active_sessions.get(session_id)
@@ -131,23 +129,3 @@ async def handle_death(websocket: WebSocket, session_id: str, data: dict):
         return
     session.deaths += 1
     await websocket.send_json(DeathAck(total_deaths=session.deaths).model_dump())
-
-
-@manager.handler("clear")
-async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
-    try:
-        ClearMessage.model_validate(data)
-    except ValidationError:
-        return
-
-    session = manager.get_session(session_id)
-    if not session:
-        return
-    current_time = time.time()
-    session.is_cleared = True
-    session.clear_time = int((current_time - session.start_time) * 1000)
-    await websocket.send_json(
-        ClearSuccess(
-            clear_time=session.clear_time, deaths=session.deaths
-        ).model_dump()
-    )

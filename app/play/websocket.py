@@ -7,7 +7,7 @@ from tortoise.expressions import F
 from tortoise.transactions import in_transaction
 
 from app.maps.models import Map
-from app.records.models import Record, Stat
+from app.records.models import Stat
 from app.user.service.token import decode_token
 from app.play.manager import manager
 from app.play.schemas import SessionStarted, ErrorResponse
@@ -34,37 +34,6 @@ async def handle_session_end(session_id: str):
     async with in_transaction():
         stat, _ = await Stat.get_or_create(user_id=session.user_id, map_id=session.map_id)
         stat.deaths += session.deaths
-        
-        #클리어 할 시
-        if session.is_cleared:
-            stat.is_cleared = True
-            
-            # 기존 최고 기록 확인
-            best_record = await Record.filter(
-                user_id=session.user_id,
-                map_id=session.map_id
-            ).order_by("clear_time").first()
-            
-            # 신기록이거나 첫 기록이면 업데이트
-            if not best_record or (best_record.clear_time is None) or session.clear_time < best_record.clear_time:
-                if best_record:
-                    # 기존 기록 업데이트
-                    best_record.clear_time = session.clear_time
-                    best_record.deaths = session.deaths
-                    await best_record.save()
-                else:
-                    # 새 기록 생성
-                    await Record.create(
-                        user_id=session.user_id,
-                        map_id=session.map_id,
-                        deaths=session.deaths,
-                        clear_time=session.clear_time,
-                        replay_url=""
-                    )
-                    # 첫 클리어 시 맵 통계 업데이트
-                    await Map.filter(id=session.map_id).update(
-                        total_clears=F("total_clears") + 1
-                    )
         
         await stat.save()
         
