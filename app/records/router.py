@@ -47,30 +47,3 @@ router = APIRouter(
 
 #     return {"message": "Death recorded"}
 
-
-# 맵 좋아요
-@router.post("/{map_id}/like")
-async def toggle_like(
-    map_obj: Map = Depends(get_valid_map), user=Depends(get_current_user)
-):
-    async with in_transaction():
-        stat, created = await Stat.get_or_create(
-            user=user, map=map_obj, defaults={"is_loved": True}
-        )
-
-        if created or not stat.is_loved:
-            stat.is_loved = True
-            is_loved = True
-            await Map.filter(id=map_obj.id).update(loved_count=F("loved_count") + 1)
-        else:
-            stat.is_loved = False
-            is_loved = False
-            await Map.filter(id=map_obj.id, loved_count__gt=0).update(
-                loved_count=F("loved_count") - 1
-            )
-
-        await stat.save()
-
-    return {
-        "is_loved": is_loved,
-    }

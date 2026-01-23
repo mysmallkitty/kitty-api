@@ -2,7 +2,9 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 import httpx
 from tortoise.exceptions import DoesNotExist, IntegrityError
-
+from tortoise.transactions import in_transaction
+from app.maps.dependencies import get_valid_map
+from app.records.models import Stat
 import settings
 from app.maps.models import Map
 from app.maps.schemas import UserMapsListSchema
@@ -94,3 +96,48 @@ async def update_user_profile(
 async def get_my_maps(current_user: User = Depends(get_current_user)):
     maps = await Map.filter(creator=current_user).all()
     return {"id": current_user.id, "maps": maps}
+
+# 유저 프로필 조회
+@router.get("/{user_id}", response_model=UserOut)
+async def get_user_profile(user_id: int):
+    user = await User.get_or_none(id=user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+# 유저 맵 목록 조회
+@router.get("/{user_id}/maps", response_model=UserMapsListSchema)
+async def get_user_maps(user_id: int):
+    user = await User.get_or_none(id=user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    maps = await Map.filter(creator=user).all()
+    return {"id": user.id, "maps": maps}
+
+# 맵 좋아요
+@router.post("/{map_id}/like")
+async def toggle_like(
+    map_obj: Map = Depends(get_valid_map), user=Depends(get_current_user)
+):
+    async with in_transaction():
+        stat, created = await Stat.get_or_create(
+            user=user, map=map_obj, defaults={"is_loved": True}
+        )
+
+        if created or not stat.is_loved:
+            stat.is_loved = True
+            is_loved = True
+            await Map.filter(id=map_obj.id).update(loved_count=F("loved_count") + 1)
+        else:
+            stat.is_loved = False
+            is_loved = False
+            await Map.filter(id=map_obj.id, loved_count__gt=0).update(
+                loved_count=F("loved_count") - 1
+            )
+
+        await stat.save()
+
+    return {
+        "is_loved": is_loved,
+    }
