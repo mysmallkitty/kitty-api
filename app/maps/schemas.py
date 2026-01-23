@@ -9,9 +9,9 @@ class MapListSchema(BaseModel):
     id: int
     creator: str = Field(validation_alias=AliasPath("creator", "username"))
     title: str
-    level: int
+    level: float
     is_ranked: bool
-    preview: str
+    preview: str | None
     loved_count: int 
     download_count: int
 
@@ -30,7 +30,7 @@ class MapDetailSchema(MapListSchema):
 class MapCreateSchema(BaseModel):
     title: str = Field(..., max_length=50)
     detail: str = Field(..., max_length=500)
-    level: int = Field(..., ge=1, le=8)
+    level: float = Field(..., ge=1.0, le=8.0)
     preview: str | None
     map_url: HttpUrl
 
@@ -39,7 +39,7 @@ class MapCreateSchema(BaseModel):
 class MapUpdateSchema(BaseModel):
     title: Optional[str] = Field(None, max_length=50)
     detail: Optional[str] = None
-    level: Optional[int] = Field(None, ge=1, le=8)
+    level: Optional[float] = Field(None, ge=1.0, le=8.0)
     preview: Optional[str] = None
     map_url: Optional[HttpUrl] = None
     is_wip: Optional[bool] = None
@@ -47,9 +47,11 @@ class MapUpdateSchema(BaseModel):
 
 # 내 맵 조회
 class UserMapItemSchema(BaseModel):
+    model_config = {"from_attributes": True}
+
     id: int
     title: str
-    level: int
+    level: float
     preview: str | None
     loved_count: int
     download_count: int
@@ -80,19 +82,14 @@ class MapLeaderboardSchema(BaseModel):
     id: int
     title: str
     creator: str = Field(validation_alias=AliasPath("creator", "username"))
-    level: int
+    level: float
     leaderboard: list[LeaderboardEntrySchema]
 
     @classmethod
     def from_map_records(cls, map_obj, records):
         leaderboard_data = [
-            LeaderboardEntrySchema(
-                rank=i,
-                user_id=r.user.id,
-                username=r.user.username,
-                deaths=r.deaths,
-                clear_time=r.clear_time,
-                created_at=r.created_at
+            LeaderboardEntrySchema.model_validate(
+                {**r.__dict__, "rank": i}
             )
             for i, r in enumerate(records, start=1)
         ]

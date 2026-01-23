@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Game WebSocket Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .controls { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }
+        .input-group { margin-bottom: 10px; }
+        input { padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 8px 15px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; margin-right: 5px; }
+        button:hover { background: #0056b3; }
+        button.disconnect { background: #dc3545; }
+        button.disconnect:hover { background: #a71d2a; }
+        #log { height: 400px; overflow-y: auto; border: 1px solid #eee; padding: 10px; background: #fff; font-family: monospace; }
+        .sent { color: #0066cc; }
+        .received { color: #008000; }
+        .error { color: #cc0000; }
+        .status { font-weight: bold; margin-left: 10px; }
+    </style>
+</head>
+<body>
+    <h2>🎮 WebSocket 테스트 클라이언트</h2>
+    
+    <div class="controls">
+        <h3>1. 연결 설정</h3>
+        <div class="input-group">
+            <label>Token: <input type="text" id="token" placeholder="Access Token (Bearer 없이)" style="width: 300px;"></label>
+        </div>
+        <div class="input-group">
+            <label>Map ID: <input type="number" id="mapId" value="1" style="width: 60px;"></label>
+        </div>
+        <button onclick="connect()">연결 (Connect)</button>
+        <button onclick="disconnect()" class="disconnect">종료 (Disconnect)</button>
+        <span id="status" class="status">상태: 연결 안됨 ⚫</span>
+    </div>
+
+    <div class="controls">
+        <h3>2. 이벤트 전송</h3>
+        <button onclick="sendPosition()">📍 위치 (Position)</button>
+        <button id="btnAuto" onclick="toggleAutoSend()">🔄 자동 이동 (Auto)</button>
+        <button onclick="sendDeath()">💀 사망 (Death)</button>
+        <button onclick="sendClear()">🏆 클리어 (Clear)</button>
+    </div>
+
+    <h3>3. 통신 로그</h3>
+    <div id="log"></div>
+
+    <script>
+        let ws = null;
+        let autoInterval = null;
+        const logDiv = document.getElementById('log');
+        const statusDiv = document.getElementById('status');
+
+        function log(msg, type='') {
+            const div = document.createElement('div');
+            div.innerHTML = `<span style="color:#999">[${new Date().toLocaleTimeString()}]</span> ${msg}`;
+            div.className = type;
+            logDiv.prepend(div);
+        }
+
+        function connect() {
+            const token = document.getElementById('token').value.trim();
+            const mapId = document.getElementById('mapId').value;
+            
+            if (!token) { alert("토큰을 입력해주세요."); return; }
+
+            // 로컬 환경 가정 (ws://localhost:8000)
+            const url = `ws://localhost:8000/api/v1/${mapId}/play?token=${token}`;
+            
+            ws = new WebSocket(url);
+
+            ws.onopen = () => {
+                statusDiv.textContent = "상태: 연결됨 🟢";
+                log("서버에 연결되었습니다.", "received");
+            };
+
+            ws.onmessage = (event) => {
+                log(`수신: ${event.data}`, "received");
+            };
+
+            ws.onclose = (event) => {
+                statusDiv.textContent = "상태: 연결 종료 🔴";
+                log(`연결이 종료되었습니다. (Code: ${event.code})`, "error");
+                ws = null;
+            };
+
+            ws.onerror = (error) => {
+                log("통신 에러 발생", "error");
+            };
+        }
+
+        function disconnect() {
+            if (ws) ws.close();
+            if (autoInterval) clearInterval(autoInterval);
+            autoInterval = null;
+        }
+
+        function send(data) {
+            if (!ws) { alert("먼저 연결해주세요."); return; }
+            const json = JSON.stringify(data);
+            ws.send(json);
+            log(`전송: ${json}`, "sent");
+        }
+
+        function sendPosition() {
+            send({
+                type: "position",
+                pos: { x: Math.floor(Math.random() * 800), y: Math.floor(Math.random() * 600) }
+            });
+        }
+
+        function toggleAutoSend() {
+            const btn = document.getElementById('btnAuto');
+            if (autoInterval) {
+                clearInterval(autoInterval);
+                autoInterval = null;
+                btn.textContent = "🔄 자동 이동 (Auto)";
+                btn.style.background = "";
+            } else {
+                // 서버 스로틀링(0.1초)에 맞춰 100ms 간격으로 전송
+                autoInterval = setInterval(sendPosition, 100);
+                btn.textContent = "⏹ 정지 (Stop)";
+                btn.style.background = "#28a745";
+            }
+        }
+
+        function sendDeath() {
+            send({ type: "death" });
+        }
+
+        function sendClear() {
+            send({ type: "clear" });
+        }
+    </script>
+</body>
+</html>
