@@ -11,7 +11,7 @@ class MapListSchema(BaseModel):
     title: str
     level: int
     is_ranked: bool
-    thumbnail_url: HttpUrl
+    preview: str
     loved_count: int 
     download_count: int
 
@@ -31,7 +31,7 @@ class MapCreateSchema(BaseModel):
     title: str = Field(..., max_length=50)
     detail: str = Field(..., max_length=500)
     level: int = Field(..., ge=1, le=8)
-    thumbnail_url: HttpUrl | None
+    preview: str | None
     map_url: HttpUrl
 
 
@@ -40,8 +40,8 @@ class MapUpdateSchema(BaseModel):
     title: Optional[str] = Field(None, max_length=50)
     detail: Optional[str] = None
     level: Optional[int] = Field(None, ge=1, le=8)
-    thumbnail_url: Optional[HttpUrl] = None
-    file_url: Optional[HttpUrl] = None
+    preview: Optional[str] = None
+    map_url: Optional[HttpUrl] = None
     is_wip: Optional[bool] = None
 
 
@@ -50,7 +50,7 @@ class UserMapItemSchema(BaseModel):
     id: int
     title: str
     level: int
-    thumbnail_url: HttpUrl | None
+    preview: str | None
     loved_count: int
     download_count: int
 
@@ -98,5 +98,5 @@ class MapLeaderboardSchema(BaseModel):
         ]
         
         map_obj.leaderboard = leaderboard_data
-        
+
         return cls.model_validate(map_obj)

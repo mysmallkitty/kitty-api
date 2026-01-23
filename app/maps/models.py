@@ -17,7 +17,7 @@ class Map(Model):
 
     # file paths
     map_url = fields.CharField(max_length=255)
-    thumbnail_url = fields.CharField(max_length=255, null=True)
+    preview = fields.CharField(max_length=255, null=True)
 
     # stats
     total_deaths = fields.IntField(default=0)

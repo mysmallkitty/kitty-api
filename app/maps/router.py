@@ -44,7 +44,7 @@ async def create_map(
             title=map_data.title,
             detail=map_data.detail,
             level=map_data.level,
-            thumbnail_url=map_data.thumbnail_url,
+            preview=map_data.preview,
             map_url=map_data.map_url,
             creator=current_user,
         )

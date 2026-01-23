@@ -12,7 +12,7 @@ async def get_filtered_maps(params: MapFilterParams):
             "creator_id",
             "title",
             "level",
-            "thumbnail_url",
+            "preview",
             "loved_count",
             "download_count",
             "is_ranked",
