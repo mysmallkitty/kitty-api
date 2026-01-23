@@ -105,15 +105,6 @@ async def get_user_profile(user_id: int):
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
-# 유저 맵 목록 조회
-@router.get("/{user_id}/maps", response_model=UserMapsListSchema)
-async def get_user_maps(user_id: int):
-    user = await User.get_or_none(id=user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    maps = await Map.filter(creator=user).all()
-    return {"id": user.id, "maps": maps}
 
 # 맵 좋아요
 @router.post("/{map_id}/like")
