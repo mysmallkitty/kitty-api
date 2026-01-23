@@ -76,6 +76,11 @@
             };
 
             ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'ghost_position') {
+                    log(`👻 Ghost ${data.user_id}: ${event.data}`, "received");
+                    return;
+                }
                 log(`수신: ${event.data}`, "received");
             };
 
@@ -118,8 +123,8 @@
                 btn.textContent = "🔄 자동 이동 (Auto)";
                 btn.style.background = "";
             } else {
-                // 서버 스로틀링(0.1초)에 맞춰 100ms 간격으로 전송
-                autoInterval = setInterval(sendPosition, 100);
+                // 60FPS 시뮬레이션 (약 16ms 간격)
+                autoInterval = setInterval(sendPosition, 16);
                 btn.textContent = "⏹ 정지 (Stop)";
                 btn.style.background = "#28a745";
             }

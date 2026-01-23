@@ -46,3 +46,8 @@ class DeathMessage(BaseModel):
 
 class ClearMessage(BaseModel):
     type: Literal["clear"]
+
+class GhostPositionMessage(BaseModel):
+    type: Literal["ghost_position"] = "ghost_position"
+    user_id: int
+    pos: PositionData
