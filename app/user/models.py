@@ -38,7 +38,7 @@ class User(Model):
     total_clears = fields.IntField(default=0)
     role = fields.CharField(max_length=10, default=Roles.USER.value)
 
-    skill_level = fields.FloatField(default=0.0)
+    total_pp = fields.FloatField(default=0.0)
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
     last_login_at = fields.DatetimeField(null=True)

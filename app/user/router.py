@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
+import httpx
 from tortoise.exceptions import DoesNotExist, IntegrityError
 
 import settings
@@ -9,7 +10,7 @@ from app.user.models import User
 from app.user.schemas.token import TokenRefreshRequest, TokenResponse
 from app.user.schemas.user import (UserMe, UserOut, UserRegisterSchema,
                                    UserUpdateSchema)
-from app.user.service.auth import update_user, validate_username_unique
+from app.user.service.auth import get_client_country, update_user, validate_username_unique
 from app.user.service.token import (create_access_token, create_refresh_token,
                                     decode_token, get_current_user)
 
@@ -55,12 +56,15 @@ async def refresh_tokens(request: TokenRefreshRequest):
 
 # 회원가입
 @router.post("/signup", response_model=UserOut, status_code=201)
-async def signup(user_data: UserRegisterSchema):
+async def signup(
+    request: Request,
+    user_data: UserRegisterSchema):
 
     await validate_username_unique(user_data.username)
 
     user = User(username=user_data.username, email=user_data.email)
     user.set_password(user_data.password)
+    user.country = await get_client_country(request.client.host)
     try:
         await user.save()
     except IntegrityError:
