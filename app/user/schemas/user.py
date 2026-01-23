@@ -26,7 +26,7 @@ class UserMe(UserOut):
 class UserRegisterSchema(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=8)
-    email: EmailStr
+    email: str = Field("optional@email.com", max_length=100)
     profile_img_url: Optional[str] = Field(None, max_length=255)
 
 

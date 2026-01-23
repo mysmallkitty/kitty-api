@@ -76,7 +76,7 @@ async def signup(
 
 
 # 내 정보 조회
-@router.post("/me", response_model=UserMe)
+@router.get("/me", response_model=UserMe)
 async def get_user(user: User = Depends(get_current_user)):
     return await UserMe.from_user(user)
 

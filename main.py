@@ -1,5 +1,5 @@
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from tortoise import Tortoise
 from fastapi.middleware.cors import CORSMiddleware 
 import settings
@@ -39,8 +39,8 @@ for router in ROUTERS:
 
 
 # 헬스체크 엔드포인트
-@app.route("/health")
-async def health_check():
+@app.get("/health")
+async def health_check(request: Request):
     return {"status": "ok"}
 
 
