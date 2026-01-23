@@ -86,8 +86,9 @@ class GameWebSocketManager:
                 if ws:
                     try:
                         await ws.send_json(message)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"Broadcast failed: {other_session_id}, {e}")
+                        manager.disconnect(other_session_id)
 
     def get_session(self, session_id: str) -> GameSession | None:
         return self.active_sessions.get(session_id)
