@@ -1,37 +1,47 @@
-from fastapi import APIRouter, HTTPException, Depends , Body
-
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
-from app.user.model import User
-from app.user.service.token import create_access_token, create_refresh_token, decode_token, get_current_user
-from tortoise.exceptions import DoesNotExist
+import httpx
+from tortoise.exceptions import DoesNotExist, IntegrityError
+from tortoise.transactions import in_transaction
+from app.maps.dependencies import get_valid_map
+from app.records.models import Stat
 import settings
-from app.user.schemas.token import TokenResponse, TokenRefreshRequest
-from app.user.schemas.user import UserMe
+from app.maps.models import Map
+from app.maps.schemas import UserMapsListSchema
+from app.user.models import User
+from app.user.schemas.token import TokenRefreshRequest, TokenResponse
+from app.user.schemas.user import (UserMe, UserOut, UserRegisterSchema,
+                                   UserUpdateSchema)
+from app.user.service.auth import get_client_country, update_user, validate_username_unique
+from app.user.service.token import (create_access_token, create_refresh_token,
+                                    decode_token, get_current_user)
 
 router = APIRouter(
-    prefix="/api/v1/users",
+    prefix="/api/v1/user",
     tags=["user"],
     responses={404: {"description": "Not found"}},
 )
 
+
 @router.post("/login", response_model=TokenResponse)
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     try:
-        user: User = await User.get(login_id=form_data.username)
+        user: User = await User.get(username=form_data.username)
     except DoesNotExist:
-        raise HTTPException(status_code=400, detail="Invalid login ID or password")
+        raise HTTPException(status_code=400, detail="Invalid Username")
 
     if not user.verify_password(form_data.password):
-        raise HTTPException(status_code=400, detail="Invalid login ID or password")
+        raise HTTPException(status_code=400, detail="Wrong Password")
 
     access_token = create_access_token(user.id)
     refresh_token = create_refresh_token(user.id)
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in= settings.JWT_ACCESS_MINUTES * 60,
-        refresh_expires_in=settings.JWT_REFRESH_DAYS * 24 * 60 * 60
+        expires_in=settings.JWT_ACCESS_MINUTES * 60,
+        refresh_expires_in=settings.JWT_REFRESH_DAYS * 24 * 60 * 60,
     )
+
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_tokens(request: TokenRefreshRequest):
@@ -42,9 +52,83 @@ async def refresh_tokens(request: TokenRefreshRequest):
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in=settings.JWT_ACCESS_MINUTES * 60,
-        refresh_expires_in=settings.JWT_REFRESH_DAYS * 24 * 60 * 60
+        refresh_expires_in=settings.JWT_REFRESH_DAYS * 24 * 60 * 60,
     )
 
-@router.post("/me", response_model=UserMe)
+
+# 회원가입
+@router.post("/signup", response_model=UserOut, status_code=201)
+async def signup(
+    request: Request,
+    user_data: UserRegisterSchema):
+
+    await validate_username_unique(user_data.username)
+
+    user = User(username=user_data.username, email=user_data.email)
+    user.set_password(user_data.password)
+    user.country = await get_client_country(request.client.host)
+    try:
+        await user.save()
+    except IntegrityError:
+        raise HTTPException(status_code=400, detail="Already In Use Username.")
+
+    return user
+
+
+# 내 정보 조회
+@router.get("/me", response_model=UserMe)
 async def get_user(user: User = Depends(get_current_user)):
     return await UserMe.from_user(user)
+
+
+# 내 정보 수정
+@router.patch("/me", response_model=UserOut)
+async def update_user_profile(
+    user_data: UserUpdateSchema, current_user: User = Depends(get_current_user)
+):
+    update_dict = user_data.model_dump(exclude_unset=True)
+    updated_user = await update_user(current_user, update_dict)
+    return updated_user
+
+
+# 내 맵 목록 조회
+@router.get("/me/maps", response_model=UserMapsListSchema)
+async def get_my_maps(current_user: User = Depends(get_current_user)):
+    maps = await Map.filter(creator=current_user).all()
+    return {"id": current_user.id, "maps": maps}
+
+# 유저 프로필 조회
+@router.get("/{user_id}", response_model=UserOut)
+async def get_user_profile(user_id: int):
+    user = await User.get_or_none(id=user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+# 맵 좋아요
+@router.post("/{map_id}/like")
+async def toggle_like(
+    map_obj: Map = Depends(get_valid_map), user=Depends(get_current_user)
+):
+    async with in_transaction():
+        stat, created = await Stat.get_or_create(
+            user=user, map=map_obj, defaults={"is_loved": True}
+        )
+
+        if created or not stat.is_loved:
+            stat.is_loved = True
+            is_loved = True
+            await Map.filter(id=map_obj.id).update(loved_count=F("loved_count") + 1)
+        else:
+            stat.is_loved = False
+            is_loved = False
+            await Map.filter(id=map_obj.id, loved_count__gt=0).update(
+                loved_count=F("loved_count") - 1
+            )
+
+        await stat.save()
+
+    return {
+        "is_loved": is_loved,
+    }
