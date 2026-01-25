@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
+from datetime import datetime
 import httpx
 from tortoise.exceptions import DoesNotExist, IntegrityError
 from tortoise.transactions import in_transaction
@@ -32,6 +33,9 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
     if not user.verify_password(form_data.password):
         raise HTTPException(status_code=400, detail="Invalid login ID or password")
+
+    user.last_login_at = datetime.now()
+    await user.save(update_fields=["last_login_at"])
 
     access_token = create_access_token(user.id)
     refresh_token = create_refresh_token(user.id)
