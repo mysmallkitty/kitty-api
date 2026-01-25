@@ -8,23 +8,23 @@ class Map(Model):
     id = fields.IntField(pk=True)
     title = fields.CharField(max_length=50, unique=True)
     detail = fields.TextField()
-    level = fields.FloatField(default=1.0)
+
+    rating = fields.FloatField(default=1.0)
+    death_meter = fields.IntField(default=0) # expected deaths per clear (for calculate pp) , 예상되는 죽음 횟수
     creator = fields.ForeignKeyField("models.User", related_name="maps")
 
     # status
     is_ranked = fields.BooleanField(default=False)
-    is_wip = fields.BooleanField(default=True)
 
     # file paths
     map_url = fields.CharField(max_length=255)
-    preview = fields.CharField(max_length=255, null=True)
+    preview_url = fields.CharField(max_length=255, null=True)
 
     # stats
     total_deaths = fields.IntField(default=0)
     total_attempts = fields.IntField(default=0)
     total_clears = fields.IntField(default=0)
     loved_count = fields.IntField(default=0)
-    download_count = fields.IntField(default=0)
 
     # timestamps
     created_at = fields.DatetimeField(auto_now_add=True)

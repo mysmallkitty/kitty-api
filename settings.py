@@ -21,11 +21,11 @@ if PASSWORD_SALT is None or JWT_SECRET_KEY is None:
 
 
 TORTOISE_ORM = {
-    "connections": {"default": "postgres://postgres:qwer1234@127.0.0.1:5432/postgres"},
+    "connections": {"default": DB_URL},
     "apps": {
         "models": {
             "models": [
-                "aerich.models",  # 마이그레이션은 poetry run aerich migrate로 만들고 poetry run aerich upgrade로 db에 반영
+                "aerich.models",
                 "app.user.models",
                 "app.maps.models",
                 "app.records.models",

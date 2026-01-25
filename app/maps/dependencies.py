@@ -31,8 +31,10 @@ async def get_valid_map_with_creator(map_id: int):
     return map_obj
 
 
-async def get_valid_map(map_id: int) -> Map:
+async def get_valid_map(map_id: int, is_ranked:bool) -> Map:
     map_obj = await Map.filter(id=map_id).only("id", "title", "map_url").first()
     if not map_obj:
         raise HTTPException(status_code=404, detail="Map not found.")
+    if is_ranked and not map_obj.is_ranked:
+        raise HTTPException(status_code=400, detail="Map is not ranked.")
     return map_obj
