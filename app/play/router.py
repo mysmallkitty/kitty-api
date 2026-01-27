@@ -47,14 +47,15 @@ async def clear(request: GameClearRequest, user=Depends(get_current_user)):
     session.clear_time = clear_time
     
     async with in_transaction():
-        stat, _ = await Stat.get_or_create(user_id=user.id, map_id=session.map_id)
+        stat, _ = await Stat.get_or_create(user_id=session.user_id, map_id=session.map_id)
         if not stat.is_cleared:
             stat.is_cleared = True
             await stat.save()
-            await User.filter(id=user.id).update(total_clears=F("total_clears") + 1)
+            await User.filter(id=session.user_id).update(total_clears=F("total_clears") + 1)
+            await Map.filter(id=session.map_id).update(total_clears=F("total_clears") + 1)
         
         best_record = await Record.filter(
-            user_id=user.id,
+            user_id=session.user_id,
             map_id=session.map_id
         ).order_by("clear_time").first()
         
@@ -65,9 +66,8 @@ async def clear(request: GameClearRequest, user=Depends(get_current_user)):
                 await best_record.save()
             else:
                 await Record.create(
-                    user_id=user.id, map_id=session.map_id, deaths=session.deaths, clear_time=clear_time, replay_url=""
+                    user_id=session.user_id, map_id=session.map_id, deaths=session.deaths, clear_time=clear_time, replay_url=""
                 )
-                await Map.filter(id=session.map_id).update(total_clears=F("total_clears") + 1)
 
     return ClearSuccess(clear_time=clear_time, deaths=session.deaths)
 
