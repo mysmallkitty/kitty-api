@@ -9,6 +9,7 @@ from app.play.manager import manager
 from app.play.schemas import ClearSuccess, GameClearRequest
 from app.play.websocket import verify_websocket_token, websocket_game_handler
 from app.records.models import Record, Stat
+from app.user.models import User
 
 
 router = APIRouter(
@@ -27,10 +28,9 @@ async def get_current_user(authorization: Annotated[str, Header()]):
     except ValueError:
          raise HTTPException(status_code=401, detail="Invalid authorization header")
 
-
+# 게임 클리어
 @router.post("/clear", response_model=ClearSuccess)
 async def clear(request: GameClearRequest, user=Depends(get_current_user)):
-    """게임 클리어 API"""
     session = manager.get_session(request.session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -51,6 +51,7 @@ async def clear(request: GameClearRequest, user=Depends(get_current_user)):
         if not stat.is_cleared:
             stat.is_cleared = True
             await stat.save()
+            await User.filter(id=user.id).update(total_clears=F("total_clears") + 1)
         
         best_record = await Record.filter(
             user_id=user.id,

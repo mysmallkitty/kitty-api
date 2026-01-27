@@ -8,6 +8,7 @@ from app.maps.dependencies import get_valid_map
 from app.records.models import Stat
 import settings
 from app.maps.models import Map
+from tortoise.expressions import F
 from app.maps.schemas import UserMapsListSchema
 from app.user.models import User
 from app.user.schemas.token import TokenRefreshRequest, TokenResponse
