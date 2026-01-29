@@ -38,6 +38,10 @@ def _preview_file_path(map_id: int) -> str:
 
 
 def _save_upload_file(upload: UploadFile, path: str) -> None:
+    try:
+        upload.file.seek(0)
+    except Exception:
+        pass
     with open(path, "wb") as buffer:
         shutil.copyfileobj(upload.file, buffer)
 
