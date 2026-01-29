@@ -21,19 +21,19 @@ router = APIRouter(
 @router.post("/{map_id}/clear")
 async def record_clear(
     record_data: RecordPost,
-    map_obj: Map = Depends(get_valid_map, is_ranked=True),
+    map_id: int,
     current_user = Depends(get_current_user),
 ):
     async with in_transaction():
+        map_obj = await get_valid_map(map_id, True)
         stat, _ = await Stat.get_or_create(user=current_user, map=map_obj)
         stat.is_cleared = True
         stat.attempts += 1
         await stat.save()
-        map_obj.total_clears = F("total_clears") + 1
+        map_obj.total_clears = map_obj.total_clears + 1
         await map_obj.save()
         pp=calculate_pp(
             death_meter=map_obj.death_meter,
-            clear_time_meter=map_obj.clear_time_meter,
             deaths=record_data.deaths,
             clear_time=record_data.clear_time,
         )

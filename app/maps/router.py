@@ -2,7 +2,7 @@ import os
 from typing import Optional
 from urllib.parse import quote
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, UploadFile, File
 from fastapi.responses import FileResponse
 from tortoise.exceptions import IntegrityError
 from tortoise.expressions import F
@@ -16,6 +16,7 @@ from app.maps.schemas import (LeaderboardEntrySchema, MapCreateSchema,
                               MapDetailSchema, MapLeaderboardSchema,
                               MapListSchema, MapUpdateSchema)
 from app.records.models import Record
+import settings
 from app.user.models import User
 from app.user.service.token import get_current_user
 
@@ -32,20 +33,26 @@ async def get_maps(params: MapFilterParams = Depends()):
     maps = await service.get_filtered_maps(params)
     return maps
 
+def save_map_file(map_file: UploadFile,preview_file: UploadFile, map_id: int):
+    map_path = settings.storage_path + f"/maps/{map_id}.kittymap"
+    preview_path = settings.storage_path + f"/previews/{map_id}.kittymap"
+    with open(path, "wb") as buffer:
+        buffer.write(map_file.file.read())
 
 # 맵 업로드
 @router.post("/")
 async def create_map(
     map_data: MapCreateSchema,
+    map_file: UploadFile = File(...),
+    preview_file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),  # 인증된 유저
+
 ):
     try:
         new_map = await Map.create(
             title=map_data.title,
             detail=map_data.detail,
-            level=map_data.level,
-            preview=map_data.preview,
-            map_url=map_data.map_url,
+            level=map_data.rating,
             creator=current_user,
         )
     except IntegrityError:

@@ -50,6 +50,7 @@ class LeaderboardEntrySchema(BaseModel):
     user_id: int = Field(validation_alias=AliasPath("user", "id"))
     username: str = Field(validation_alias=AliasPath("user", "username"))
     deaths: int
+    pp: float
     clear_time: int
     created_at: datetime
 

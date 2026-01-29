@@ -9,7 +9,6 @@ from app.records.models import Stat
 import settings
 from app.maps.models import Map
 from tortoise.expressions import F
-from app.maps.schemas import UserMapsListSchema
 from app.user.models import User
 from app.user.schemas.token import TokenRefreshRequest, TokenResponse
 from app.user.schemas.user import (UserMe, UserOut, UserRegisterSchema,
@@ -95,12 +94,6 @@ async def update_user_profile(
     updated_user = await update_user(current_user, update_dict)
     return updated_user
 
-
-# 내 맵 목록 조회
-@router.get("/me/maps", response_model=UserMapsListSchema)
-async def get_my_maps(current_user: User = Depends(get_current_user)):
-    maps = await Map.filter(creator=current_user).all()
-    return {"id": current_user.id, "maps": maps}
 
 # 유저 프로필 조회
 @router.get("/{user_id}", response_model=UserOut)

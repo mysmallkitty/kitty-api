@@ -20,8 +20,8 @@ class UserMe(UserOut):
         friend_count = await Friendship.filter(user=user).count()
         rank = (
             await User.filter(
-                Q(skill_level__gt=user.skill_level)
-                | Q(skill_level=user.skill_level, id__lt=user.id)
+                Q(total_pp__gt=user.total_pp)
+                | Q(total_pp__gt=user.total_pp, id__lt=user.id)
             ).count()
             + 1
         )
