@@ -1,6 +1,7 @@
 import os
 from typing import Optional
 from urllib.parse import quote
+from tortoise.transactions import in_transaction
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, UploadFile, File
 from fastapi.responses import FileResponse
@@ -96,6 +97,8 @@ async def download_map(map_obj: Map = Depends(get_valid_map)):
         raise HTTPException(status_code=404, detail="Map not found.")
 
     await Map.filter(id=map_obj.id).update(download_count=F("download_count") + 1)
+    await User.filter(id=map_obj.creator_id).update(total_downloads=F("total_downloads") + 1)
+    
     safe_filename = quote(f"{map_obj.title}.map")
 
     return FileResponse(
@@ -106,6 +109,37 @@ async def download_map(map_obj: Map = Depends(get_valid_map)):
         },
     )
 
+# 맵 좋아요
+@router.post("/{map_id}/like")
+async def toggle_like(
+    map_obj: Map = Depends(get_valid_map), user=Depends(get_current_user)
+):
+    async with in_transaction():
+        stat, created = await Stat.get_or_create(
+            user=user, map=map_obj, defaults={"is_loved": True}
+        )
+
+        if created or not stat.is_loved:
+            stat.is_loved = True
+            is_loved = True
+            await Map.filter(id=map_obj.id).update(loved_count=F("loved_count") + 1)
+            await User.filter(id=user.id).update(total_loved=F("total_loved") + 1)
+        else:
+            stat.is_loved = False
+            is_loved = False
+            await Map.filter(id=map_obj.id, loved_count__gt=0).update(
+                loved_count=F("loved_count") - 1
+            )
+            await User.filter(id=user.id, total_loved__gt=0).update(
+                total_loved=F("total_loved") - 1
+            )
+
+
+        await stat.save()
+
+    return {
+        "is_loved": is_loved,
+    }
 
 # 맵 리더보드 상위 20명 뽑기
 @router.get("/{map_id}/leaderboard", response_model=MapLeaderboardSchema)

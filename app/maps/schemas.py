@@ -9,21 +9,26 @@ class MapListSchema(BaseModel):
     id: int
     creator: str = Field(validation_alias=AliasPath("creator", "username"))
     title: str
-    rating: float
+    rating: float = Field(ge=1.0, le=8.0)
     is_ranked: bool
-    loved_count: int
+    loved_count: int = Field(ge=0)
+    download_count: int = Field(ge=0)
+
+
+# 맵 상세 조회
 
 
 class MapDetailSchema(MapListSchema):
     detail: str
     map_url: HttpUrl
-    total_deaths: int
-    total_attempts: int
-    total_clears: int
-    rating: float
+    total_deaths: int = Field(ge=0)
+    total_attempts: int = Field(ge=0)
+    total_clears: int = Field(ge=0)
+    rating: float = Field(ge=1.0, le=8.0)
     created_at: datetime
     updated_at: datetime
-    loved_count: int
+    loved_count: int = Field(ge=0)
+    download_count: int = Field(ge=0)
 
 
 # 맵 등록
@@ -49,8 +54,8 @@ class LeaderboardEntrySchema(BaseModel):
     rank: int = 0
     user_id: int = Field(validation_alias=AliasPath("user", "id"))
     username: str = Field(validation_alias=AliasPath("user", "username"))
-    deaths: int
-    pp: float
+    deaths: int = Field(ge=0)
+    pp: float = Field(ge=0)
     clear_time: int
     created_at: datetime
 
@@ -60,7 +65,7 @@ class MapLeaderboardSchema(BaseModel):
     id: int
     title: str
     creator: str = Field(validation_alias=AliasPath("creator", "username"))
-    level: float
+    level: float = Field(ge=1.0, le=8.0)
     leaderboard: list[LeaderboardEntrySchema]
 
     @classmethod
