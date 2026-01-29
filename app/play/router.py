@@ -1,7 +1,8 @@
 
 import time
 from typing import Annotated
-from fastapi import APIRouter, Depends, Header, HTTPException, WebSocket
+from fastapi import APIRouter, Depends, HTTPException, WebSocket
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from tortoise.expressions import F
 from tortoise.transactions import in_transaction
 from app.maps.models import Map
@@ -19,14 +20,10 @@ router = APIRouter(
 )
 
 
-async def get_current_user(authorization: Annotated[str, Header()]):
-    try:
-        scheme, token = authorization.split()
-        if scheme.lower() != 'bearer':
-            raise HTTPException(status_code=401, detail="Invalid authentication scheme")
-        return await verify_websocket_token(token)
-    except ValueError:
-         raise HTTPException(status_code=401, detail="Invalid authorization header")
+security = HTTPBearer()
+
+async def get_current_user(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]):
+    return await verify_websocket_token(credentials.credentials)
 
 # 게임 클리어
 @router.post("/clear", response_model=ClearSuccess)
@@ -53,12 +50,12 @@ async def clear(request: GameClearRequest, user=Depends(get_current_user)):
             await stat.save()
             await User.filter(id=session.user_id).update(total_clears=F("total_clears") + 1)
             await Map.filter(id=session.map_id).update(total_clears=F("total_clears") + 1)
-        
+
         best_record = await Record.filter(
             user_id=session.user_id,
             map_id=session.map_id
         ).order_by("clear_time").first()
-        
+
         if not best_record or (best_record.clear_time is None) or clear_time < best_record.clear_time:
             if best_record:
                 best_record.clear_time = clear_time
