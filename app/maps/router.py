@@ -1,22 +1,19 @@
 import os
+import shutil
 from typing import Optional
 from urllib.parse import quote
 from tortoise.transactions import in_transaction
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from tortoise.exceptions import IntegrityError
 from tortoise.expressions import F
 
-from app import records
 import app.maps.services as service
-from app.maps.dependencies import (MapFilterParams, get_valid_map,
-                                   get_valid_map_with_creator)
+from app.maps.dependencies import MapFilterParams, get_valid_map, get_valid_map_with_creator
 from app.maps.models import Map
-from app.maps.schemas import (LeaderboardEntrySchema, MapCreateSchema,
-                              MapDetailSchema, MapLeaderboardSchema,
-                              MapListSchema, MapUpdateSchema)
-from app.records.models import Record
+from app.maps.schemas import MapDetailSchema, MapListSchema, MapUpdateSchema, MapCreateSchema, MapLeaderboardSchema
+from app.records.models import Record, Stat
 import settings
 from app.user.models import User
 from app.user.service.token import get_current_user
@@ -28,47 +25,115 @@ router = APIRouter(
 )
 
 
-# 맵 목록 조회
+def _ensure_storage_dirs() -> None:
+    os.makedirs(os.path.join(settings.storage_path, "maps"), exist_ok=True)
+    os.makedirs(os.path.join(settings.storage_path, "previews"), exist_ok=True)
+
+
+def _map_file_path(map_id: int) -> str:
+    return os.path.join(settings.storage_path, "maps", f"{map_id}.kittymap")
+
+
+def _preview_file_path(map_id: int) -> str:
+    return os.path.join(settings.storage_path, "previews", f"{map_id}.kittymap")
+
+
+def _save_upload_file(upload: UploadFile, path: str) -> None:
+    try:
+        upload.file.seek(0)
+    except Exception:
+        pass
+    with open(path, "wb") as buffer:
+        shutil.copyfileobj(upload.file, buffer)
+
+
 @router.get("/", response_model=list[MapListSchema])
 async def get_maps(params: MapFilterParams = Depends()):
     maps = await service.get_filtered_maps(params)
     return maps
 
-def save_map_file(map_file: UploadFile,preview_file: UploadFile, map_id: int):
-    map_path = settings.storage_path + f"/maps/{map_id}.kittymap"
-    preview_path = settings.storage_path + f"/previews/{map_id}.kittymap"
-    with open(path, "wb") as buffer:
-        buffer.write(map_file.file.read())
 
-# 맵 업로드
-@router.post("/")
+@router.post("/", response_model=MapDetailSchema)
 async def create_map(
-    map_data: MapCreateSchema,
+    title: str = Form(...),
+    detail: Optional[str] = Form(""),
+    rating: float = Form(...),
     map_file: UploadFile = File(...),
     preview_file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),  # 인증된 유저
-
+    current_user: User = Depends(get_current_user),
 ):
+    _ensure_storage_dirs()
     try:
         new_map = await Map.create(
-            title=map_data.title,
-            detail=map_data.detail,
-            level=map_data.rating,
+            title=title,
+            detail=detail,
+            rating=rating,
             creator=current_user,
+            map_url="not-set",
+            preview_url="not-set"
         )
     except IntegrityError:
-        raise HTTPException(status_code=400, detail="Already In Use Title.")
+        raise HTTPException(status_code=400, detail="invalid map data")
 
+    map_path = _map_file_path(new_map.id)
+    preview_path = _preview_file_path(new_map.id)
+    new_map.map_url = map_path
+    new_map.preview_url = preview_path
+
+    _save_upload_file(map_file, map_path)
+    _save_upload_file(preview_file, preview_path)
+
+    await new_map.save()
     return new_map
 
 
-# 맵 상세 조회
 @router.get("/{map_id}", response_model=MapDetailSchema)
 async def get_map_detail(map_obj: Map = Depends(get_valid_map_with_creator)):
     return map_obj
 
 
-# 맵 수정
+@router.put("/{map_id}", response_model=MapDetailSchema)
+async def update_map_file(
+    map_obj: Map = Depends(get_valid_map_with_creator),
+    current_user: User = Depends(get_current_user),
+    title: Optional[str] = Form(None),
+    detail: Optional[str] = Form(None),
+    rating: Optional[float] = Form(None),
+    map_file: Optional[UploadFile] = File(None),
+    preview_file: Optional[UploadFile] = File(None),
+):
+    if map_obj.creator.id != current_user.id:
+        raise HTTPException(status_code=403, detail="Have No Permission.")
+
+    update_data = {}
+    if title is not None:
+        update_data["title"] = title
+    if detail is not None:
+        update_data["detail"] = detail
+    if rating is not None:
+        update_data["rating"] = rating
+
+    if update_data:
+        try:
+            await map_obj.update_from_dict(update_data)
+            await map_obj.save()
+        except IntegrityError:
+            raise HTTPException(status_code=400,detail="What")
+
+    _ensure_storage_dirs()
+    if map_file is not None:
+        map_path = _map_file_path(map_obj.id)
+        _save_upload_file(map_file, map_path)
+        map_obj.map_url = map_path
+    if preview_file is not None:
+        preview_path = _preview_file_path(map_obj.id)
+        _save_upload_file(preview_file, preview_path)
+        map_obj.preview_url = preview_path
+    await map_obj.save()
+
+    return map_obj
+
+
 @router.patch("/{map_id}", response_model=MapDetailSchema)
 async def update_map(
     map_data: MapUpdateSchema,
@@ -84,21 +149,17 @@ async def update_map(
         await map_obj.update_from_dict(update_data)
         await map_obj.save()
     except IntegrityError:
-        raise HTTPException(status_code=400, detail="Already In Use Title.")
+        raise HTTPException(status_code=400, detail="invalid map data")
 
     return map_obj
 
 
-# 맵 다운로드
 @router.get("/{map_id}/download")
 async def download_map(map_obj: Map = Depends(get_valid_map)):
-
     if not os.path.exists(map_obj.map_url):
         raise HTTPException(status_code=404, detail="Map not found.")
 
-    await Map.filter(id=map_obj.id).update(download_count=F("download_count") + 1)
-    await User.filter(id=map_obj.creator_id).update(total_downloads=F("total_downloads") + 1)
-    
+    await Map.filter(id=map_obj.id).update(total_attempts=F("total_attempts") + 1)
     safe_filename = quote(f"{map_obj.title}.map")
 
     return FileResponse(
@@ -141,7 +202,21 @@ async def toggle_like(
         "is_loved": is_loved,
     }
 
-# 맵 리더보드 상위 20명 뽑기
+@router.get("/{map_id}/preview")
+async def download_preview(map_obj: Map = Depends(get_valid_map)):
+    if not map_obj.preview_url or not os.path.exists(map_obj.preview_url):
+        raise HTTPException(status_code=404, detail="Preview not found.")
+
+    safe_filename = quote(f"{map_obj.title}_preview.map")
+    return FileResponse(
+        path=map_obj.preview_url,
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{safe_filename}"
+        },
+    )
+
+
 @router.get("/{map_id}/leaderboard", response_model=MapLeaderboardSchema)
 async def get_map_leaderboard(map_obj: Map = Depends(get_valid_map_with_creator)):
     records = await (

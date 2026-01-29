@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import AliasPath, BaseModel, Field, HttpUrl
+from pydantic import AliasPath, BaseModel, Field
 
 
 class MapListSchema(BaseModel):
@@ -9,42 +9,36 @@ class MapListSchema(BaseModel):
     id: int
     creator: str = Field(validation_alias=AliasPath("creator", "username"))
     title: str
-    rating: float = Field(ge=1.0, le=8.0)
+    rating: float
     is_ranked: bool
-    loved_count: int = Field(ge=0)
-    download_count: int = Field(ge=0)
-
-
-# 맵 상세 조회
+    loved_count: int
+    total_attempts: int = 0
+    thumbnail_url: Optional[str] = Field(None, validation_alias=AliasPath("preview_url"))
 
 
 class MapDetailSchema(MapListSchema):
     detail: str
-    map_url: HttpUrl
-    total_deaths: int = Field(ge=0)
-    total_attempts: int = Field(ge=0)
-    total_clears: int = Field(ge=0)
-    rating: float = Field(ge=1.0, le=8.0)
+    map_url: str
+    thumbnail_url: Optional[str] = Field(None, validation_alias=AliasPath("preview_url"))
+    total_deaths: int
+    total_attempts: int
+    total_clears: int
     created_at: datetime
     updated_at: datetime
-    loved_count: int = Field(ge=0)
-    download_count: int = Field(ge=0)
+    loved_count: int
 
 
-# 맵 등록
 class MapCreateSchema(BaseModel):
     title: str = Field(..., max_length=50)
     detail: str = Field(..., max_length=100)
     rating: float = Field(..., ge=1.0, le=8.0)
 
 
-# 맵 정보 수정
 class MapUpdateSchema(BaseModel):
     title: Optional[str] = Field(None, max_length=50)
     detail: Optional[str] = None
     rating: Optional[float] = Field(None, ge=1.0, le=8.0)
 
-# 맵 리더보드 상위 20 명
 class LeaderboardEntrySchema(BaseModel):
     model_config = {
         "from_attributes": True,
@@ -54,8 +48,8 @@ class LeaderboardEntrySchema(BaseModel):
     rank: int = 0
     user_id: int = Field(validation_alias=AliasPath("user", "id"))
     username: str = Field(validation_alias=AliasPath("user", "username"))
-    deaths: int = Field(ge=0)
-    pp: float = Field(ge=0)
+    deaths: int
+    pp: float
     clear_time: int
     created_at: datetime
 
@@ -65,7 +59,7 @@ class MapLeaderboardSchema(BaseModel):
     id: int
     title: str
     creator: str = Field(validation_alias=AliasPath("creator", "username"))
-    level: float = Field(ge=1.0, le=8.0)
+    level: float = Field(validation_alias=AliasPath("rating"))
     leaderboard: list[LeaderboardEntrySchema]
 
     @classmethod

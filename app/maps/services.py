@@ -11,10 +11,9 @@ async def get_filtered_maps(params: MapFilterParams):
             "id",
             "creator_id",
             "title",
-            "level",
-            "preview",
+            "rating",
             "loved_count",
-            "download_count",
+            "total_attempts",
             "is_ranked",
         )
         .prefetch_related("creator")
@@ -27,8 +26,8 @@ async def get_filtered_maps(params: MapFilterParams):
 
     sort_map = {
         "latest": "-id",
-        "downloads": "-download_count",
-        "difficulty": "-level",
+        "plays": "-total_attempts",
+        "difficulty": "-rating",
         "loved": "-loved_count",
     }
     query = query.order_by(sort_map.get(params.sort, "-id"))
