@@ -11,8 +11,8 @@ UserOut = pydantic_model_creator(User, name="UserOut")
 
 
 class UserMe(UserOut):
-    friend_count: int
-    rank: int
+    friend_count: int = Field(ge=0)
+    rank: int = Field(ge=0)
 
     @classmethod
     async def from_user(cls, user: User) -> "UserMe":
