@@ -7,6 +7,7 @@ from app.maps.router import router as maps_router
 from app.records.router import router as records_router
 from app.user.router import router as user_router
 from app.play.router import router as play_router
+from app.admin.router import router as admin_router
 
 
 ROUTERS = [
@@ -14,6 +15,7 @@ ROUTERS = [
     maps_router,
     records_router,
     play_router,
+    admin_router,
 ]
 
 
