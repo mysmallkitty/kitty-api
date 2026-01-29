@@ -1,4 +1,4 @@
-from tortoise import fields
+﻿from tortoise import fields
 from tortoise.models import Model
 
 
@@ -10,7 +10,7 @@ class Map(Model):
     detail = fields.TextField()
 
     rating = fields.FloatField(default=1.0)
-    death_meter = fields.IntField(default=0) # expected deaths per clear (for calculate pp) , 예상되는 죽음 횟수
+    death_meter = fields.IntField(default=0) # expected deaths per clear (for calculate pp) , ?덉긽?섎뒗 二쎌쓬 ?잛닔
     creator = fields.ForeignKeyField("models.User", related_name="maps")
 
     # status
@@ -20,6 +20,8 @@ class Map(Model):
     map_url = fields.CharField(max_length=255)
     preview_url = fields.CharField(max_length=255, null=True)
 
+    # cache
+    hash = fields.CharField(max_length=64, default="")
     # stats
     total_deaths = fields.IntField(default=0)
     total_attempts = fields.IntField(default=0)
@@ -32,3 +34,6 @@ class Map(Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+
