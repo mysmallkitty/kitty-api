@@ -6,7 +6,7 @@ class Map(Model):
 
     # metadata
     id = fields.IntField(pk=True)
-    title = fields.CharField(max_length=50, unique=True)
+    title = fields.CharField(max_length=50)
     detail = fields.TextField()
 
     rating = fields.FloatField(default=1.0)

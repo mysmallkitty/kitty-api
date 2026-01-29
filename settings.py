@@ -19,6 +19,8 @@ match os.environ.get("ENVIRONLEVEL", "null"):
 if PASSWORD_SALT is None or JWT_SECRET_KEY is None:
     raise EnvironmentError("필수 환경 변수(.env)가 설정되지 않았습니다.")
 
+storage_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), STORAGE_PATH)
+os.makedirs(storage_path, exist_ok=True)
 
 TORTOISE_ORM = {
     "connections": {"default": DB_URL},

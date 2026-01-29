@@ -8,6 +8,7 @@ from tortoise.transactions import in_transaction
 
 from app.maps.models import Map
 from app.records.models import Stat
+from app.user.models import User
 from app.user.service.token import decode_token
 from app.play.manager import manager
 from app.play.schemas import SessionStarted, ErrorResponse
@@ -17,7 +18,6 @@ async def verify_websocket_token(token: str):
     """WebSocket용 토큰 검증"""
     try:
         token_config = decode_token(token, expected_type="access")
-        from app.user.models import User
         user = await User.get_or_none(id=token_config.id)
         if not user:
             raise HTTPException(status_code=401, detail="Invalid token")
@@ -37,8 +37,12 @@ async def handle_session_end(session_id: str):
         
         await stat.save()
         
-        # 맵 전체 데스 통계 업데이트
+        # session.deaths 만큼 user, map 에 total deaths 추가
         await Map.filter(id=session.map_id).update(
+            total_deaths=F("total_deaths") + session.deaths
+        )
+
+        await User.filter(id=session.user_id).update(
             total_deaths=F("total_deaths") + session.deaths
         )
 
@@ -66,16 +70,19 @@ async def websocket_game_handler(websocket: WebSocket, map_id: int, token: str):
     manager.connect(websocket, session_id, map_id, user.id)
     
     try:
-        # 맵 시작하면 attemtps 증가
+        # 맵 시작하면 attemtps 증가 (user, map)
         async with in_transaction():
-            stat, _ = await Stat.get_or_create(user=user, map_id=map_id)
+            stat, _ = await Stat.get_or_create(user_id=user.id, map_id=map_id)
             stat.attempts += 1
             await stat.save()
             
             await Map.filter(id=map_id).update(
                 total_attempts=F("total_attempts") + 1
             )
-        
+            await User.filter(id=user.id).update(
+                total_attempts=F("total_attempts") + 1
+            )
+
         # 시작 확인 전송
         await websocket.send_json(
             SessionStarted(session_id=session_id, map_id=map_id).model_dump()
