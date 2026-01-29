@@ -13,7 +13,7 @@ import app.maps.services as service
 from app.maps.dependencies import MapFilterParams, get_valid_map, get_valid_map_with_creator
 from app.maps.models import Map
 from app.maps.schemas import MapDetailSchema, MapListSchema, MapUpdateSchema, MapCreateSchema, MapLeaderboardSchema
-from app.records.models import Record
+from app.records.models import Record, Stat
 import settings
 from app.user.models import User
 from app.user.service.token import get_current_user
@@ -159,13 +159,7 @@ async def download_map(map_obj: Map = Depends(get_valid_map)):
     if not os.path.exists(map_obj.map_url):
         raise HTTPException(status_code=404, detail="Map not found.")
 
-<<<<<<< HEAD
     await Map.filter(id=map_obj.id).update(total_attempts=F("total_attempts") + 1)
-=======
-    await Map.filter(id=map_obj.id).update(download_count=F("download_count") + 1)
-    await User.filter(id=map_obj.creator_id).update(total_downloads=F("total_downloads") + 1)
-    
->>>>>>> cd00c99a59cd915ffa9261afbe8d19979829bbed
     safe_filename = quote(f"{map_obj.title}.map")
 
     return FileResponse(
