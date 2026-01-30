@@ -211,16 +211,17 @@ async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
     async with in_transaction():
         stat, _ = await Stat.get_or_create(user_id=session.user_id, map_id=session.map_id)
         stat.deaths += stats_deaths
+        first_clear = not stat.is_cleared
         stat.is_cleared = True
         await stat.save()
 
         await Map.filter(id=session.map_id).update(
             total_deaths=F("total_deaths") + stats_deaths,
-            total_clears=F("total_clears") + 1,
+            total_clears=F("total_clears") + (1 if first_clear else 0),
         )
         await User.filter(id=session.user_id).update(
             total_deaths=F("total_deaths") + stats_deaths,
-            total_clears=F("total_clears") + 1,
+            total_clears=F("total_clears") + (1 if first_clear else 0),
         )
 
         best_record = await Record.filter(user_id=session.user_id, map_id=session.map_id).first()

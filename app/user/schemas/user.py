@@ -38,11 +38,10 @@ class UserRegisterSchema(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=8)
     email: str = Field("optional@email.com", max_length=100)
-    profile_img_url: Optional[str] = Field(None, max_length=255)
 
 
 class UserUpdateSchema(BaseModel):
     username: Optional[str] = Field(None, max_length=50)
     password: Optional[str] = Field(None, max_length=255)
     email: Optional[str] = Field(None, max_length=100)
-    profile_img_url: Optional[str] = Field(None, max_length=255)
+    profile_sprite: Optional[str] = Field(None, max_length=256)

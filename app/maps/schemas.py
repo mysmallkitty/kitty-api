@@ -56,6 +56,7 @@ class LeaderboardEntrySchema(BaseModel):
     rank: int = 0
     user_id: int = Field(validation_alias=AliasPath("user", "id"))
     username: str = Field(validation_alias=AliasPath("user", "username"))
+    profile_sprite: Optional[str] = Field(None, validation_alias=AliasPath("user", "profile_sprite"))
     deaths: int = Field(ge=0)
     pp: float = Field(ge=0.0)
     clear_time: int
@@ -81,6 +82,7 @@ class MapLeaderboardSchema(BaseModel):
                 "rank": i,
                 "user_id": user_id,
                 "username": username,
+                "profile_sprite": r.user.profile_sprite if getattr(r, "user", None) else None,
                 "deaths": r.deaths,
                 "pp": r.pp,
                 "clear_time": r.clear_time,
