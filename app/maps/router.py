@@ -1,5 +1,6 @@
-import os
+﻿import os
 import shutil
+from hashlib import sha256
 from typing import Optional
 from urllib.parse import quote
 from tortoise.transactions import in_transaction
@@ -48,13 +49,15 @@ def _preview_file_path(map_id: int) -> str:
     return os.path.join(settings.storage_path, "previews", f"{map_id}.kittymap")
 
 
-def _save_upload_file(upload: UploadFile, path: str) -> None:
+def _save_upload_file(upload: UploadFile, path: str) -> bytes:
     try:
         upload.file.seek(0)
     except Exception:
         pass
+    data = upload.file.read()
     with open(path, "wb") as buffer:
-        shutil.copyfileobj(upload.file, buffer)
+        buffer.write(data)
+    return data
 
 
 @router.get("/", response_model=list[MapListSchema])
@@ -90,8 +93,9 @@ async def create_map(
     new_map.map_url = map_path
     new_map.preview_url = preview_path
 
-    _save_upload_file(map_file, map_path)
+    map_bytes = _save_upload_file(map_file, map_path)
     _save_upload_file(preview_file, preview_path)
+    new_map.hash = sha256(map_bytes).hexdigest()
 
     await new_map.save()
     return new_map
@@ -133,8 +137,9 @@ async def update_map_file(
     _ensure_storage_dirs()
     if map_file is not None:
         map_path = _map_file_path(map_obj.id)
-        _save_upload_file(map_file, map_path)
+        map_bytes = _save_upload_file(map_file, map_path)
         map_obj.map_url = map_path
+        map_obj.hash = sha256(map_bytes).hexdigest()
     if preview_file is not None:
         preview_path = _preview_file_path(map_obj.id)
         _save_upload_file(preview_file, preview_path)
@@ -181,7 +186,6 @@ async def download_map(map_obj: Map = Depends(get_valid_map)):
     )
 
 
-# 맵 좋아요
 @router.post("/{map_id}/like")
 async def toggle_like(
     map_obj: Map = Depends(get_valid_map), user=Depends(get_current_user)

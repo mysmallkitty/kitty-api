@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime
 from typing import List, Optional
 
 from pydantic import AliasPath, BaseModel, Field
@@ -14,11 +14,10 @@ class MapListSchema(BaseModel):
     title: str
     rating: float = Field(ge=MIN_RATING, le=MAX_RATING)
     is_ranked: bool
-    loved_count: int = Field(ge=0)
-    total_attempts: int = Field(ge=0)
-    thumbnail_url: Optional[str] = Field(
-        None, validation_alias=AliasPath("preview_url")
-    )
+    loved_count: int
+    total_attempts: int = 0
+    hash: str = ""
+    thumbnail_url: Optional[str] = Field(None, validation_alias=AliasPath("preview_url"))
 
 
 class MapDetailSchema(MapListSchema):
@@ -78,3 +77,9 @@ class MapLeaderboardSchema(BaseModel):
         map_obj.leaderboard = leaderboard_data
 
         return cls.model_validate(map_obj)
+
+
+
+
+
+

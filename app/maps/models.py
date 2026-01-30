@@ -1,4 +1,4 @@
-from tortoise import fields
+﻿from tortoise import fields
 from tortoise.models import Model
 
 
@@ -22,6 +22,8 @@ class Map(Model):
     map_url = fields.CharField(max_length=255)
     preview_url = fields.CharField(max_length=255, null=True)
 
+    # cache
+    hash = fields.CharField(max_length=64, default="")
     # stats
     total_deaths = fields.IntField(default=0)
     total_attempts = fields.IntField(default=0)
@@ -34,3 +36,6 @@ class Map(Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+

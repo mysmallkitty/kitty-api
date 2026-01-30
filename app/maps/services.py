@@ -1,4 +1,4 @@
-from tortoise.expressions import F
+﻿from tortoise.expressions import F
 
 from app.maps.dependencies import MapFilterParams
 from app.maps.models import Map
@@ -15,6 +15,7 @@ async def get_filtered_maps(params: MapFilterParams):
             "loved_count",
             "total_attempts",
             "is_ranked",
+            "hash",
         )
         .prefetch_related("creator")
     )
