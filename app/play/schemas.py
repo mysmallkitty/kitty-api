@@ -21,6 +21,8 @@ class ClearSuccess(WebSocketResponse):
     type: Literal["clear_success"] = "clear_success"
     clear_time: int
     deaths: int
+    pp: float
+    rank: int
 
 
 class ErrorResponse(WebSocketResponse):
@@ -52,3 +54,7 @@ class GhostPositionMessage(BaseModel):
 
 class GameClearRequest(BaseModel):
     session_id: str
+
+class UserEndSessionMessage(BaseModel):
+    type: str = "UserEndSession"
+    user_id: int

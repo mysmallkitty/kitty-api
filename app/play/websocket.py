@@ -4,7 +4,7 @@ from collections import defaultdict
 from fastapi import WebSocket, WebSocketDisconnect, HTTPException
 from tortoise.expressions import F
 from tortoise.transactions import in_transaction
-
+from app.records.redis_services import global_stats_service
 from app.maps.models import Map
 from app.records.models import Stat
 from app.user.models import User
@@ -29,6 +29,8 @@ async def handle_session_end(session_id: str):
     session = manager.get_session(session_id)
     if not session or (session.deaths == 0 and not session.is_cleared):
         return
+    
+    await global_stats_service.record_deaths(session.deaths)
 
     async with in_transaction():
         stat, _ = await Stat.get_or_create(
@@ -103,4 +105,4 @@ async def websocket_game_handler(websocket: WebSocket, map_id: int, token: str):
 
     finally:
         # 세션 정리
-        manager.disconnect(session_id)
+        await manager.disconnect(session_id)

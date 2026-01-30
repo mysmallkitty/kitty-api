@@ -10,6 +10,7 @@ from app.play.schemas import (
     PositionMessage,
     DeathMessage,
     GhostPositionMessage,
+    UserEndSessionMessage,
 )
 
 # 로거 설정
@@ -61,21 +62,23 @@ class GameWebSocketManager:
         self.active_websockets[session_id] = websocket
         self.map_sessions[map_id].add(session_id)
 
-    # 세션 종료하면 리소스 정리
-    def disconnect(self, session_id: str):
-        if session_id in self.active_sessions:
-            map_id = self.active_sessions[session_id].map_id
+    async def disconnect(self, session_id: str):
+            session = self.get_session(session_id)
+            if not session:
+                return
+            
+            message = UserEndSessionMessage(user_id=session.user_id)
+            await self.broadcast(session_id, message.model_dump())
+
+            map_id = session.map_id
             if map_id in self.map_sessions:
                 self.map_sessions[map_id].discard(session_id)
                 if not self.map_sessions[map_id]:
                     del self.map_sessions[map_id]
-            del self.active_sessions[session_id]
 
-        if session_id in self.active_websockets:
-            del self.active_websockets[session_id]
-
-        if session_id in self.last_position_time:
-            del self.last_position_time[session_id]
+            self.active_sessions.pop(session_id, None)
+            self.active_websockets.pop(session_id, None)
+            self.last_position_time.pop(session_id, None)
 
     async def broadcast(self, session_id: str, message: dict):
         session = self.get_session(session_id)
