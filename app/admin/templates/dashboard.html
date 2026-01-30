@@ -1,0 +1,101 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<style>
+  /* Tabler UI 텍스트 색상 강제 수정 (흰색 배경에 검은 글씨) */
+  body, .page-title, .card-title, .text-muted, .table, .h1, .h2, .h3, .h4, .h5, .h6, .nav-link-title, .nav-link-icon {
+    color: #1d273b !important;
+  }
+  .card {
+    background-color: #ffffff !important;
+  }
+</style>
+<div class="page-header d-print-none">
+  <div class="row align-items-center">
+    <div class="col">
+      <h2 class="page-title">
+        Dashboard
+      </h2>
+    </div>
+  </div>
+</div>
+<div class="page-body">
+  <div class="container-xl">
+    <div class="row row-deck row-cards">
+      <div class="col-12">
+        <div class="row row-cards">
+          <!-- 유저 통계 카드 -->
+          <div class="col-sm-6 col-lg-4">
+            <div class="card card-sm">
+              <div class="card-body">
+                <div class="row align-items-center">
+                  <div class="col-auto">
+                    <span class="bg-primary text-white avatar">
+                      <i class="fas fa-user"></i>
+                    </span>
+                  </div>
+                  <div class="col">
+                    <div class="font-weight-medium">
+                      {{ user_count }} Users
+                    </div>
+                    <div class="text-muted">
+                      Total registered users
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 맵 통계 카드 -->
+          <div class="col-sm-6 col-lg-4">
+            <div class="card card-sm">
+              <div class="card-body">
+                <div class="row align-items-center">
+                  <div class="col-auto">
+                    <span class="bg-green text-white avatar">
+                      <i class="fas fa-map"></i>
+                    </span>
+                  </div>
+                  <div class="col">
+                    <div class="font-weight-medium">
+                      {{ map_count }} Maps
+                    </div>
+                    <div class="text-muted">
+                      Total uploaded maps
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 기록 통계 카드 -->
+          <div class="col-sm-6 col-lg-4">
+            <div class="card card-sm">
+              <div class="card-body">
+                <div class="row align-items-center">
+                  <div class="col-auto">
+                    <span class="bg-yellow text-white avatar">
+                      <i class="fas fa-trophy"></i>
+                    </span>
+                  </div>
+                  <div class="col">
+                    <div class="font-weight-medium">
+                      {{ record_count }} Records
+                    </div>
+                    <div class="text-muted">
+                      Total game records
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

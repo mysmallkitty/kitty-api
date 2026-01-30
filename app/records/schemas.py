@@ -9,6 +9,8 @@ class RecordPost(BaseModel):
     deaths: int = Field(ge=0)
     attempts: int = Field(ge=0)
     clear_time: int
+
+
 from pydantic import BaseModel
 
 

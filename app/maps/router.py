@@ -10,9 +10,19 @@ from tortoise.exceptions import IntegrityError
 from tortoise.expressions import F
 
 import app.maps.services as service
-from app.maps.dependencies import MapFilterParams, get_valid_map, get_valid_map_with_creator
+from app.maps.dependencies import (
+    MapFilterParams,
+    get_valid_map,
+    get_valid_map_with_creator,
+)
 from app.maps.models import Map
-from app.maps.schemas import MapDetailSchema, MapListSchema, MapUpdateSchema, MapCreateSchema, MapLeaderboardSchema
+from app.maps.schemas import (
+    MapDetailSchema,
+    MapListSchema,
+    MapUpdateSchema,
+    MapCreateSchema,
+    MapLeaderboardSchema,
+)
 from app.records.models import Record, Stat
 import settings
 from app.user.models import User
@@ -70,7 +80,7 @@ async def create_map(
             rating=rating,
             creator=current_user,
             map_url="not-set",
-            preview_url="not-set"
+            preview_url="not-set",
         )
     except IntegrityError:
         raise HTTPException(status_code=400, detail="invalid map data")
@@ -118,7 +128,7 @@ async def update_map_file(
             await map_obj.update_from_dict(update_data)
             await map_obj.save()
         except IntegrityError:
-            raise HTTPException(status_code=400,detail="What")
+            raise HTTPException(status_code=400, detail="What")
 
     _ensure_storage_dirs()
     if map_file is not None:
@@ -170,6 +180,7 @@ async def download_map(map_obj: Map = Depends(get_valid_map)):
         },
     )
 
+
 # 맵 좋아요
 @router.post("/{map_id}/like")
 async def toggle_like(
@@ -195,12 +206,12 @@ async def toggle_like(
                 total_loved=F("total_loved") - 1
             )
 
-
         await stat.save()
 
     return {
         "is_loved": is_loved,
     }
+
 
 @router.get("/{map_id}/preview")
 async def download_preview(map_obj: Map = Depends(get_valid_map)):

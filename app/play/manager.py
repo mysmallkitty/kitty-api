@@ -1,4 +1,3 @@
-
 from collections import defaultdict
 import logging
 import time
@@ -16,8 +15,10 @@ from app.play.schemas import (
 # 로거 설정
 logger = logging.getLogger(__name__)
 
+
 class GameSession:
     """게임 세션 데이터"""
+
     def __init__(self, map_id: int, user_id: int):
         self.map_id = map_id
         self.user_id = user_id
@@ -25,9 +26,11 @@ class GameSession:
         self.start_time = time.time()
         self.clear_time = None
         self.is_cleared = False
-        
+
+
 # 설정
-POSITION_THROTTLE = 0.01 
+POSITION_THROTTLE = 0.01
+
 
 class GameWebSocketManager:
     def __init__(self):
@@ -41,6 +44,7 @@ class GameWebSocketManager:
         def decorator(func):
             self.handlers[message_type] = func
             return func
+
         return decorator
 
     async def dispatch(self, websocket: WebSocket, session_id: str, data: dict):
@@ -49,7 +53,7 @@ class GameWebSocketManager:
         if not handler:
             logger.warning(f"Unknown message type: {message_type}")
             return
-        
+
         await handler(websocket, session_id, data)
 
     def connect(self, websocket: WebSocket, session_id: str, map_id: int, user_id: int):
@@ -66,18 +70,18 @@ class GameWebSocketManager:
                 if not self.map_sessions[map_id]:
                     del self.map_sessions[map_id]
             del self.active_sessions[session_id]
-            
+
         if session_id in self.active_websockets:
             del self.active_websockets[session_id]
-            
+
         if session_id in self.last_position_time:
             del self.last_position_time[session_id]
-            
+
     async def broadcast(self, session_id: str, message: dict):
         session = self.get_session(session_id)
         if not session or session.map_id not in self.map_sessions:
             return
-            
+
         for other_session_id in self.map_sessions[session.map_id]:
             if other_session_id != session_id:
                 ws = self.active_websockets.get(other_session_id)
@@ -106,13 +110,12 @@ async def handle_position(websocket: WebSocket, session_id: str, data: dict):
     if current_time - manager.last_position_time[session_id] < POSITION_THROTTLE:
         return
     manager.last_position_time[session_id] = current_time
-    
+
     # 고스트 위치 브로드캐스팅
     session = manager.get_session(session_id)
     if session:
         ghost_message = GhostPositionMessage(
-            user_id=session.user_id,
-            pos=data.get("pos")
+            user_id=session.user_id, pos=data.get("pos")
         )
         await manager.broadcast(session_id, ghost_message.model_dump())
 

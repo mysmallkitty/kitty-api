@@ -1,8 +1,7 @@
 from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field
-from tortoise.contrib.pydantic import (pydantic_model_creator,
-                                       pydantic_queryset_creator)
+from tortoise.contrib.pydantic import pydantic_model_creator, pydantic_queryset_creator
 from tortoise.expressions import Q
 
 from app.user.models import Friendship, User

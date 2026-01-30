@@ -8,6 +8,7 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+
 # 전체 유저 리더보드 (PP순)
 @router.get("/leaderboard", response_model=list[UserLeaderboardSchema])
 async def get_global_leaderboard(page: int = 1, limit: int = 20):

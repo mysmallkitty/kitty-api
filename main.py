@@ -1,13 +1,14 @@
 import uvicorn
 from fastapi import FastAPI, Request
 from tortoise import Tortoise
-from fastapi.middleware.cors import CORSMiddleware 
+from fastapi.middleware.cors import CORSMiddleware
 import settings
 from app.maps.router import router as maps_router
 from app.records.router import router as records_router
 from app.user.router import router as user_router
 from app.play.router import router as play_router
-from app.admin.router import router as admin_router
+from app.admin.main import setup_admin
+
 
 
 ROUTERS = [
@@ -15,12 +16,12 @@ ROUTERS = [
     maps_router,
     records_router,
     play_router,
-    admin_router,
 ]
 
 
 async def lifespan(app: FastAPI):
     await Tortoise.init(config=settings.TORTOISE_ORM)
+    await setup_admin(app)
     yield
     await Tortoise.close_connections()
 
@@ -29,10 +30,10 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  
-    allow_headers=["*"],  
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # 라우터 등록

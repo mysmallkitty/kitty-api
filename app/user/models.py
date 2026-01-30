@@ -37,7 +37,6 @@ class User(Model):
     total_deaths = fields.IntField(default=0)
     total_attempts = fields.IntField(default=0)
     total_clears = fields.IntField(default=0)
-    total_downloads = fields.IntField(default=0)
     total_loved = fields.IntField(default=0)
     role = fields.CharField(max_length=10, default=Roles.USER.value)
 

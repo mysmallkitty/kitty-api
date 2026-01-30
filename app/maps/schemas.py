@@ -6,6 +6,7 @@ from pydantic import AliasPath, BaseModel, Field
 MIN_RATING = 1.0
 MAX_RATING = 8.0
 
+
 class MapListSchema(BaseModel):
     model_config = {"from_attributes": True}
     id: int
@@ -15,13 +16,17 @@ class MapListSchema(BaseModel):
     is_ranked: bool
     loved_count: int = Field(ge=0)
     total_attempts: int = Field(ge=0)
-    thumbnail_url: Optional[str] = Field(None, validation_alias=AliasPath("preview_url"))
+    thumbnail_url: Optional[str] = Field(
+        None, validation_alias=AliasPath("preview_url")
+    )
 
 
 class MapDetailSchema(MapListSchema):
     detail: str
     map_url: str
-    thumbnail_url: Optional[str] = Field(None, validation_alias=AliasPath("preview_url"))
+    thumbnail_url: Optional[str] = Field(
+        None, validation_alias=AliasPath("preview_url")
+    )
     total_deaths: int = Field(ge=0)
     total_attempts: int = Field(ge=0)
     total_clears: int = Field(ge=0)
@@ -41,11 +46,9 @@ class MapUpdateSchema(BaseModel):
     detail: Optional[str] = None
     rating: Optional[float] = Field(ge=MIN_RATING, le=MAX_RATING)
 
+
 class LeaderboardEntrySchema(BaseModel):
-    model_config = {
-        "from_attributes": True,
-        "populate_by_name": True 
-    }
+    model_config = {"from_attributes": True, "populate_by_name": True}
 
     rank: int = 0
     user_id: int = Field(validation_alias=AliasPath("user", "id"))
@@ -54,6 +57,7 @@ class LeaderboardEntrySchema(BaseModel):
     pp: float = Field(ge=0.0)
     clear_time: int
     created_at: datetime
+
 
 class MapLeaderboardSchema(BaseModel):
     model_config = {"from_attributes": True}
@@ -67,12 +71,10 @@ class MapLeaderboardSchema(BaseModel):
     @classmethod
     def from_map_records(cls, map_obj, records):
         leaderboard_data = [
-            LeaderboardEntrySchema.model_validate(
-                {**r.__dict__, "rank": i}
-            )
+            LeaderboardEntrySchema.model_validate({**r.__dict__, "rank": i})
             for i, r in enumerate(records, start=1)
         ]
-        
+
         map_obj.leaderboard = leaderboard_data
 
         return cls.model_validate(map_obj)

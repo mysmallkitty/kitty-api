@@ -677,14 +677,14 @@ standard-no-fastapi-cloud-cli = ["email-validator (>=2.0.0)", "fastapi-cli[stand
 
 [[package]]
 name = "fastapi-admin"
-version = "1.0.4"
+version = "1.0.2"
 description = "A fast admin dashboard based on FastAPI and TortoiseORM with tabler ui, inspired by Django admin."
 optional = false
 python-versions = ">=3.7,<4.0"
 groups = ["main"]
 files = [
-    {file = "fastapi-admin-1.0.4.tar.gz", hash = "sha256:d45cb23a23fc2bbffb0e8adfb1362350a1fe808f47912253c1f067f7d7745d88"},
-    {file = "fastapi_admin-1.0.4-py3-none-any.whl", hash = "sha256:0b00dd2d72bbb5af50847cd4c49261aab999eeba7d8371786b822dce4b97ef0d"},
+    {file = "fastapi-admin-1.0.2.tar.gz", hash = "sha256:bb18184e92b0f88cb36de1f446bd0acdebbf5b133966b66434848833dd7187c0"},
+    {file = "fastapi_admin-1.0.2-py3-none-any.whl", hash = "sha256:6771196a493fff2d2e5089da8336dcca3040d5bd77eeb1e4af7d85ecf1aa08ef"},
 ]
 
 [package.dependencies]
@@ -1772,6 +1772,24 @@ files = [
 windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
+name = "pyjwt"
+version = "2.10.1"
+description = "JSON Web Token implementation in Python"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "PyJWT-2.10.1-py3-none-any.whl", hash = "sha256:dcdd193e30abefd5debf142f9adfcdd2b58004e644f25406ffaebd50bd98dacb"},
+    {file = "pyjwt-2.10.1.tar.gz", hash = "sha256:3cc5772eb20009233caf06e9d8a0577824723b44e6648ee0a2aedb6cf9381953"},
+]
+
+[package.extras]
+crypto = ["cryptography (>=3.4.0)"]
+dev = ["coverage[toml] (==5.0.4)", "cryptography (>=3.4.0)", "pre-commit", "pytest (>=6.0.0,<7.0.0)", "sphinx", "sphinx-rtd-theme", "zope.interface"]
+docs = ["sphinx", "sphinx-rtd-theme", "zope.interface"]
+tests = ["coverage[toml] (==5.0.4)", "pytest (>=6.0.0,<7.0.0)"]
+
+[[package]]
 name = "pypika-tortoise"
 version = "0.6.3"
 description = "Forked from pypika and streamline just for tortoise-orm"
@@ -1958,6 +1976,25 @@ files = [
     {file = "pyyaml-6.0.3-cp39-cp39-win_amd64.whl", hash = "sha256:2e71d11abed7344e42a8849600193d15b6def118602c4c176f748e4583246007"},
     {file = "pyyaml-6.0.3.tar.gz", hash = "sha256:d76623373421df22fb4cf8817020cbb7ef15c725b9d5e45f17e189bfc384190f"},
 ]
+
+[[package]]
+name = "redis"
+version = "5.3.1"
+description = "Python client for Redis database and key-value store"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "redis-5.3.1-py3-none-any.whl", hash = "sha256:dc1909bd24669cc31b5f67a039700b16ec30571096c5f1f0d9d2324bff31af97"},
+    {file = "redis-5.3.1.tar.gz", hash = "sha256:ca49577a531ea64039b5a36db3d6cd1a0c7a60c34124d46924a45b956e8cf14c"},
+]
+
+[package.dependencies]
+PyJWT = ">=2.9.0"
+
+[package.extras]
+hiredis = ["hiredis (>=3.0.0)"]
+ocsp = ["cryptography (>=36.0.1)", "pyopenssl (==23.2.1)", "requests (>=2.31.0)"]
 
 [[package]]
 name = "rich"
@@ -2688,4 +2725,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "327d5b7052bfe3ab2695a694c50ce432c07ccd56fb8604c192c6a3265a22d25d"
+content-hash = "26a53fc7112abcd5f773248848fa4a29bbbac2b0ff4acac2d4dc6d04668af9af"
