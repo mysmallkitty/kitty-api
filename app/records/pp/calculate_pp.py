@@ -91,14 +91,14 @@ def _time_factor(clear_time: int, expected_time: float) -> float:
 
 
 def calculate_pp(_map: Map, _record: Record) -> float:
-    if _map.death_meter <= 0:
-        return 0.0
+    # Treat non-positive death_meter as 1 to keep PP calculable and avoid div-by-zero.
+    dm = max(int(_map.death_meter), 1)
 
     base_max_pp = _max_pp_from_rating(_map.rating)
-    max_pp = base_max_pp * _length_factor(_map.death_meter)
-    expected_time = float(_map.death_meter) * SECONDS_PER_EXPECTED_DEATH
+    max_pp = base_max_pp * _length_factor(dm)
+    expected_time = float(dm) * SECONDS_PER_EXPECTED_DEATH
 
-    death_component = _death_score(_record.deaths, _map.death_meter)
+    death_component = _death_score(_record.deaths, dm)
     time_component = _time_factor(_record.clear_time, expected_time)
 
     performance = _clamp(death_component * time_component, 0.0, 1.0)

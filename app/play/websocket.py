@@ -72,7 +72,7 @@ async def websocket_game_handler(websocket: WebSocket, map_id: int, token: str):
 
     # 세션 생성
     session_id = f"{user.id}_{map_id}_{int(time.time() * 1000)}"
-    manager.connect(websocket, session_id, map_id, user.id)
+    await manager.connect(websocket, session_id, map_id, user.id)
 
     try:
         # 맵 시작하면 attemtps 증가 (user, map)

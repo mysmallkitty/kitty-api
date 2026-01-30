@@ -3,7 +3,7 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
 from tortoise.contrib.pydantic import pydantic_model_creator, pydantic_queryset_creator
 
-from app.records.redis_rank import ranking_service
+from app.records.redis_services import ranking_service
 from app.user.models import Friendship, User
 
 UserOut = pydantic_model_creator(User, name="UserOut")
