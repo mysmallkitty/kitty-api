@@ -64,7 +64,20 @@ class User(Model):
 
     async def friend_count(self) -> int:
         return await Friendship.filter(user=self).count()
+    
+    def can_ban_user(self) -> bool:
+        if self.role in [Roles.ADMIN.value, Roles.MOD.value]:
+            return True
+        return False
 
+    def can_rank_map(self) -> bool:
+        if self.role in [Roles.ADMIN.value, Roles.MOD.value, Roles.RM.value]:
+            return True
+        return False
+    
+    def can_rate_map(self) -> bool:
+        if self.role in [Roles.ADMIN.value, Roles.MOD.value, Roles.LV.value, Roles.RM.value]:
+            return True
 
 class Friendship(Model):
 

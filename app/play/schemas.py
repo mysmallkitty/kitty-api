@@ -43,6 +43,17 @@ class PositionMessage(BaseModel):
 class DeathMessage(BaseModel):
     type: Literal["death"]
 
+class ChatMessage(BaseModel):
+    type: Literal["chat"]
+    text: str
+
+
+class ChatBroadcast(WebSocketResponse):
+    type: Literal["chat"] = "chat"
+    user_id: int
+    text: str
+
+
 class GhostPositionMessage(BaseModel):
     type: Literal["ghost_position"] = "ghost_position"
     user_id: int

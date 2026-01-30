@@ -10,7 +10,9 @@ from app.play.schemas import (
     DeathAck,
     PositionMessage,
     DeathMessage,
+    ChatMessage,
     GhostPositionMessage,
+    ChatBroadcast,
 )
 
 # 로거 설정
@@ -129,3 +131,22 @@ async def handle_death(websocket: WebSocket, session_id: str, data: dict):
         return
     session.deaths += 1
     await websocket.send_json(DeathAck(total_deaths=session.deaths).model_dump())
+
+
+@manager.handler("chat")
+async def handle_chat(websocket: WebSocket, session_id: str, data: dict):
+    try:
+        ChatMessage.model_validate(data)
+    except ValidationError:
+        return
+    session = manager.get_session(session_id)
+    if not session:
+        return
+    text = str(data.get("text", "")).strip()
+    if text == "":
+        return
+    text = text[:200]
+    broadcast = ChatBroadcast(user_id=session.user_id, text=text)
+    await manager.broadcast(session_id, broadcast.model_dump())
+
+
