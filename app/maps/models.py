@@ -10,7 +10,9 @@ class Map(Model):
     detail = fields.TextField()
 
     rating = fields.FloatField(default=1.0)
-    death_meter = fields.IntField(default=0) # expected deaths per clear (for calculate pp) , ?덉긽?섎뒗 二쎌쓬 ?잛닔
+    death_meter = fields.IntField(
+        default=0
+    )  # expected deaths per clear (for calculate pp) , 예상되는 죽음 횟수
     creator = fields.ForeignKeyField("models.User", related_name="maps")
 
     # status

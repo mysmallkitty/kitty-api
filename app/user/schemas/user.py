@@ -1,32 +1,25 @@
 from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field
-from tortoise.contrib.pydantic import (pydantic_model_creator,
-                                       pydantic_queryset_creator)
-from tortoise.expressions import Q
+from tortoise.contrib.pydantic import pydantic_model_creator, pydantic_queryset_creator
 
+from app.records.redis_rank import ranking_service
 from app.user.models import Friendship, User
 
 UserOut = pydantic_model_creator(User, name="UserOut")
 
 
 class UserMe(UserOut):
-    friend_count: int
-    rank: int
+    friend_count: int = Field(ge=0)
+    rank: int = Field(ge=0)
 
     @classmethod
     async def from_user(cls, user: User) -> "UserMe":
         base = await UserOut.from_tortoise_orm(user)
         friend_count = await Friendship.filter(user=user).count()
-        rank = (
-            await User.filter(
-                Q(total_pp__gt=user.total_pp)
-                | Q(total_pp__gt=user.total_pp, id__lt=user.id)
-            ).count()
-            + 1
-        )
+        rank = await ranking_service.get_rank(user.id)
         return cls.model_validate(
-            {**base.model_dump(), "friend_count": friend_count, "rank": rank}
+            {**base.model_dump(), "friend_count": friend_count, "rank": rank if rank else 0}
         )
 
 

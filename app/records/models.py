@@ -26,7 +26,7 @@ class Record(Model):
     deaths = fields.IntField(default=0)
     clear_time = fields.IntField(null=True)
     rank = fields.IntField(null=True)
-    pp = fields.IntField(null=True)
+    pp = fields.FloatField(null=True)
     replay_url = fields.CharField(max_length=255)
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)

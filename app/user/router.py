@@ -10,11 +10,18 @@ from app.maps.models import Map
 from tortoise.expressions import F
 from app.user.models import User
 from app.user.schemas.token import TokenRefreshRequest, TokenResponse
-from app.user.schemas.user import (UserMe, UserOut, UserRegisterSchema,
-                                   UserUpdateSchema)
-from app.user.service.auth import get_client_country, update_user, validate_username_unique
-from app.user.service.token import (create_access_token, create_refresh_token,
-                                    decode_token, get_current_user)
+from app.user.schemas.user import UserMe, UserOut, UserRegisterSchema, UserUpdateSchema
+from app.user.service.auth import (
+    get_client_country,
+    update_user,
+    validate_username_unique,
+)
+from app.user.service.token import (
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    get_current_user,
+)
 
 router = APIRouter(
     prefix="/api/v1/user",
@@ -61,9 +68,7 @@ async def refresh_tokens(request: TokenRefreshRequest):
 
 # 회원가입
 @router.post("/signup", response_model=UserOut, status_code=201)
-async def signup(
-    request: Request,
-    user_data: UserRegisterSchema):
+async def signup(request: Request, user_data: UserRegisterSchema):
 
     await validate_username_unique(user_data.username)
 
@@ -101,5 +106,3 @@ async def get_user_profile(user_id: int):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
-
-

@@ -11,9 +11,19 @@ from tortoise.exceptions import IntegrityError
 from tortoise.expressions import F
 
 import app.maps.services as service
-from app.maps.dependencies import MapFilterParams, get_valid_map, get_valid_map_with_creator
+from app.maps.dependencies import (
+    MapFilterParams,
+    get_valid_map,
+    get_valid_map_with_creator,
+)
 from app.maps.models import Map
-from app.maps.schemas import MapDetailSchema, MapListSchema, MapUpdateSchema, MapCreateSchema, MapLeaderboardSchema
+from app.maps.schemas import (
+    MapDetailSchema,
+    MapListSchema,
+    MapUpdateSchema,
+    MapCreateSchema,
+    MapLeaderboardSchema,
+)
 from app.records.models import Record, Stat
 import settings
 from app.user.models import User

@@ -24,8 +24,10 @@ async def update_user(user: User, update_dict: dict) -> User:
     await user.save()
     return user
 
+
 import httpx
 from typing import Optional
+
 
 async def get_client_country(ip: str) -> Optional[str]:
 
@@ -34,12 +36,12 @@ async def get_client_country(ip: str) -> Optional[str]:
             url = f"http://ip-api.com/json/{ip}?fields=status,countryCode"
             response = await client.get(url, timeout=2.0)
             data = response.json()
-            
+
             if data.get("status") == "success":
                 country = data.get("countryCode")
                 return country.lower() if country else None
-            
-            return None 
-            
+
+            return None
+
         except Exception:
             return None
