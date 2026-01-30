@@ -80,7 +80,7 @@ async def signup(request: Request, user_data: UserRegisterSchema):
     except IntegrityError:
         raise HTTPException(status_code=400, detail="Already In Use Username.")
 
-    return user
+    return await UserOut.from_user(user)
 
 
 # 내 정보 조회
@@ -96,7 +96,7 @@ async def update_user_profile(
 ):
     update_dict = user_data.model_dump(exclude_unset=True)
     updated_user = await update_user(current_user, update_dict)
-    return updated_user
+    return await UserOut.from_user(updated_user)
 
 
 # 유저 프로필 조회
@@ -105,4 +105,4 @@ async def get_user_profile(user_id: int):
     user = await User.get_or_none(id=user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return user
+    return await UserOut.from_user(user)

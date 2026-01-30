@@ -162,8 +162,20 @@ async def handle_chat(websocket: WebSocket, session_id: str, data: dict):
 
 
 async def _recompute_total_pp(user_id: int) -> float:
-    records = await Record.filter(user_id=user_id, pp__not_isnull=True).order_by("-pp").limit(50)
-    return float(sum(r.pp for r in records if r.pp is not None))
+    records = (
+        await Record.filter(user_id=user_id, pp__not_isnull=True)
+        .order_by("-pp")
+        .limit(100)
+    )
+    total = 0.0
+    weight = 1.0
+    decay = 0.95
+    for r in records:
+        if r.pp is None:
+            continue
+        total += float(r.pp) * weight
+        weight *= decay
+    return total
 
 
 @manager.handler("clear")

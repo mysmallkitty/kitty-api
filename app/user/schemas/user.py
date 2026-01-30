@@ -6,7 +6,18 @@ from tortoise.contrib.pydantic import pydantic_model_creator, pydantic_queryset_
 from app.records.redis_services import ranking_service
 from app.user.models import Friendship, User
 
-UserOut = pydantic_model_creator(User, name="UserOut")
+UserOutBase = pydantic_model_creator(User, name="UserOutBase")
+
+
+class UserOut(UserOutBase):
+    rank: int = Field(ge=0, default=0)
+    total_pp: float = Field(ge=0.0, default=0.0)
+
+    @classmethod
+    async def from_user(cls, user: User) -> "UserOut":
+        base = await UserOutBase.from_tortoise_orm(user)
+        rank = await ranking_service.get_rank(user.id)
+        return cls.model_validate({**base.model_dump(), "rank": rank if rank else 0})
 
 
 class UserMe(UserOut):
@@ -15,7 +26,7 @@ class UserMe(UserOut):
 
     @classmethod
     async def from_user(cls, user: User) -> "UserMe":
-        base = await UserOut.from_tortoise_orm(user)
+        base = await UserOutBase.from_tortoise_orm(user)
         friend_count = await Friendship.filter(user=user).count()
         rank = await ranking_service.get_rank(user.id)
         return cls.model_validate(
