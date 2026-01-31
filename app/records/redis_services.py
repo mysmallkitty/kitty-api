@@ -5,7 +5,8 @@ import time
 
 class RankingService:
     def __init__(self):
-        self.redis = redis.Redis(REDIS_URL, decode_responses=True)
+        # redis-py 5 enforces keyword-only args; use from_url to accept the URL form
+        self.redis = redis.Redis.from_url(REDIS_URL, decode_responses=True)
         self.key = "global_leaderboard"
 
     # 유저의 모든 PP를 Redis Sorted Set에 저장

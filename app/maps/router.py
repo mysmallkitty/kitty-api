@@ -5,7 +5,7 @@ from typing import Optional
 from urllib.parse import quote
 from tortoise.transactions import in_transaction
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Header
 from fastapi.responses import FileResponse
 from tortoise.exceptions import IntegrityError
 from tortoise.expressions import F
@@ -27,7 +27,7 @@ from app.maps.schemas import (
 from app.records.models import Record, Stat
 import settings
 from app.user.models import User
-from app.user.service.token import get_current_user
+from app.user.service.token import get_current_user, decode_token
 
 router = APIRouter(
     prefix="/api/v1/maps",
@@ -35,6 +35,18 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+
+async def get_optional_user(authorization: str | None = Header(None)) -> User | None:
+    if not authorization:
+        return None
+    if not authorization.lower().startswith('bearer '):
+        return None
+    token = authorization.split(' ', 1)[1]
+    try:
+        token_config = decode_token(token, expected_type='access')
+    except Exception:
+        return None
+    return await User.get_or_none(id=token_config.id)
 
 def _ensure_storage_dirs() -> None:
     os.makedirs(os.path.join(settings.storage_path, "maps"), exist_ok=True)
@@ -102,7 +114,17 @@ async def create_map(
 
 
 @router.get("/{map_id}", response_model=MapDetailSchema)
-async def get_map_detail(map_obj: Map = Depends(get_valid_map_with_creator)):
+async def get_map_detail(
+    map_obj: Map = Depends(get_valid_map_with_creator),
+    current_user: User | None = Depends(get_optional_user),
+):
+    if current_user:
+        stat = await Stat.get_or_none(user_id=current_user.id, map_id=map_obj.id)
+        record = await Record.filter(user_id=current_user.id, map_id=map_obj.id).first()
+        map_obj.user_attempts = stat.attempts if stat else 0
+        map_obj.user_deaths = stat.deaths if stat else 0
+        map_obj.is_loved = stat.is_loved if stat else False
+        map_obj.best_time = record.clear_time if record else None
     return map_obj
 
 
@@ -235,9 +257,9 @@ async def download_preview(map_obj: Map = Depends(get_valid_map)):
 @router.get("/{map_id}/leaderboard", response_model=MapLeaderboardSchema)
 async def get_map_leaderboard(map_obj: Map = Depends(get_valid_map_with_creator)):
     records = await (
-        Record.filter(map_id=map_obj.id, clear_time__not_isnull=True)
+        Record.filter(map_id=map_obj.id, pp__not_isnull=True)
         .prefetch_related("user")
-        .order_by("clear_time")
+        .order_by("-pp", "clear_time")
         .limit(20)
     )
 

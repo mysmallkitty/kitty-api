@@ -30,11 +30,20 @@ class ErrorResponse(WebSocketResponse):
     message: str
 
 
+class ClearAck(WebSocketResponse):
+    type: Literal["clear_ack"] = "clear_ack"
+    clear_time: int
+    deaths: int
+    pp: float
+    rank: int
+
+
 # --- Incoming Messages (Client -> Server) ---
 # 필요 시 핸들러에서 데이터 검증용으로 사용
 class PositionData(BaseModel):
     x: float
     y: float
+    dir: float | None = None
 
 
 class PositionMessage(BaseModel):
@@ -44,6 +53,13 @@ class PositionMessage(BaseModel):
 
 class DeathMessage(BaseModel):
     type: Literal["death"]
+    dir: float | None = None
+
+class ClearMessage(BaseModel):
+    type: Literal["clear"]
+    clear_time: int
+    deaths: int
+
 
 class ChatMessage(BaseModel):
     type: Literal["chat"]

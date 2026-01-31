@@ -3,8 +3,8 @@ from typing import List, Optional
 
 from pydantic import AliasPath, BaseModel, Field
 
-MIN_RATING = 1.0
-MAX_RATING = 8.0
+MIN_RATING = 0.0
+MAX_RATING = 11.0
 
 
 class MapListSchema(BaseModel):
@@ -21,6 +21,10 @@ class MapListSchema(BaseModel):
 
 
 class MapDetailSchema(MapListSchema):
+    user_attempts: int = 0
+    user_deaths: int = 0
+    best_time: int | None = None
+    is_loved: bool = False
     detail: str
     map_url: str
     thumbnail_url: Optional[str] = Field(
@@ -52,6 +56,7 @@ class LeaderboardEntrySchema(BaseModel):
     rank: int = 0
     user_id: int = Field(validation_alias=AliasPath("user", "id"))
     username: str = Field(validation_alias=AliasPath("user", "username"))
+    profile_sprite: Optional[str] = Field(None, validation_alias=AliasPath("user", "profile_sprite"))
     deaths: int = Field(ge=0)
     pp: float = Field(ge=0.0)
     clear_time: int
@@ -69,10 +74,22 @@ class MapLeaderboardSchema(BaseModel):
 
     @classmethod
     def from_map_records(cls, map_obj, records):
-        leaderboard_data = [
-            LeaderboardEntrySchema.model_validate({**r.__dict__, "rank": i})
-            for i, r in enumerate(records, start=1)
-        ]
+        leaderboard_data = []
+        for i, r in enumerate(records, start=1):
+            user_id = r.user.id if getattr(r, "user", None) else r.user_id
+            username = r.user.username if getattr(r, "user", None) else None
+            data = {
+                "rank": i,
+                "user_id": user_id,
+                "username": username,
+                "profile_sprite": r.user.profile_sprite if getattr(r, "user", None) else None,
+                "deaths": r.deaths,
+                "pp": r.pp,
+                "clear_time": r.clear_time,
+                "created_at": r.created_at,
+            }
+            entry = LeaderboardEntrySchema.model_validate(data)
+            leaderboard_data.append(entry)
 
         map_obj.leaderboard = leaderboard_data
 
