@@ -14,12 +14,12 @@ class Stat(Model):
     best_pp_record = fields.ForeignKeyField(
         "models.Record",
         null=True,
-        related_name="+"
+        related_name="stat_best_pp"
     )
     best_time_record = fields.ForeignKeyField(
         "models.Record",
         null=True,
-        related_name="+"
+        related_name="stat_best_time"
     )
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
