@@ -19,11 +19,12 @@ class DeathAck(WebSocketResponse):
 
 class ClearSuccess(WebSocketResponse):
     type: Literal["clear_success"] = "clear_success"
+    record_id: int
     clear_time: int
     deaths: int
     pp: float
     rank: int
-
+    rank_diff: int
 
 class ErrorResponse(WebSocketResponse):
     type: Literal["error"] = "error"

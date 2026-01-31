@@ -11,6 +11,16 @@ class Stat(Model):
     attempts = fields.IntField(default=0)
     is_cleared = fields.BooleanField(default=False)
     is_loved = fields.BooleanField(default=False)
+    best_pp_record = fields.ForeignKeyField(
+        "models.Record",
+        null=True,
+        related_name="+"
+    )
+    best_time_record = fields.ForeignKeyField(
+        "models.Record",
+        null=True,
+        related_name="+"
+    )
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
 
