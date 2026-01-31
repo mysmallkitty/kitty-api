@@ -18,7 +18,7 @@ if not hasattr(jinja2.ext, 'autoescape'):
 
 from fastapi import FastAPI
 from fastapi_admin.app import app as admin_app
-from fastapi_admin.providers.login import UsernamePasswordProvider
+from app.admin.providers import LoginProvider
 
 import settings
 from app.user.models import User
@@ -26,7 +26,7 @@ from app.user.models import User
 import app.admin.resources
 import app.admin.router
 
-login_provider = UsernamePasswordProvider(
+login_provider = LoginProvider(
     admin_model=User,
 )
 
