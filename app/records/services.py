@@ -12,14 +12,17 @@ class ResultService:
     async def process_record(self, record_id: int):
         record = await Record.get(id=record_id).prefetch_related("map")
 
-        if not record.map.is_ranked:
-            return
+        pp = None
+        if record.map.is_ranked:
+            pp = calculate_pp(record.map, record)
 
-        pp = calculate_pp(record.map, record)
-        record.pp = pp
-        await record.save()
+        rank_update = None
 
         async with in_transaction():
+            if pp is not None:
+                record.pp = pp
+                await record.save()
+
             stat = await Stat.get(
                 user_id=record.user_id,
                 map_id=record.map_id
@@ -27,28 +30,31 @@ class ResultService:
 
             dirty = False
 
-            old_pp = stat.best_pp_record.pp if stat.best_pp_record else 0
+            if record.map.is_ranked:
+                old_pp = stat.best_pp_record.pp if stat.best_pp_record else 0
 
-            if pp > old_pp:
-                stat.best_pp_record = record
-                dirty = True
+                if record.pp > old_pp:
+                    stat.best_pp_record = record
+                    dirty = True
 
-                diff = pp - old_pp
-                await User.filter(id=record.user_id).update(
-                    total_pp=F("total_pp") + diff
-                )
+                    diff = record.pp - old_pp
+                    await User.filter(id=record.user_id).update(
+                        total_pp=F("total_pp") + diff
+                    )
 
-                new_total = (await User.get(id=record.user_id)).total_pp
-                await ranking_service.update_user_pp(record.user_id, new_total)
+                    rank_update = (await User.get(id=record.user_id)).total_pp
 
             old_time = stat.best_time_record.clear_time if stat.best_time_record else None
-
             if old_time is None or record.clear_time < old_time:
                 stat.best_time_record = record
                 dirty = True
 
             if dirty:
                 await stat.save()
+
+        if rank_update is not None:
+            await ranking_service.update_user_pp(record.user_id, rank_update)
+
 
 result_service = ResultService()
 

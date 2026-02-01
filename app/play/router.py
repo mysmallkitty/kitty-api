@@ -48,7 +48,7 @@ async def clear(request: GameClearRequest, user=Depends(get_current_user)):
         pp=0, replay_url=""
     )
 
-    # attempt + 1
+    # clear + 1
     await clear_service.mark_first_clear(user.id, session.map_id)
     # pp 계산, 레디스
     await result_service.process_record(record.id)
