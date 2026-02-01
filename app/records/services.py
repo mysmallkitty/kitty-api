@@ -33,7 +33,7 @@ class ResultService:
             if record.map.is_ranked:
                 old_pp = stat.best_pp_record.pp if stat.best_pp_record else 0
 
-                if record.pp > old_pp:
+                if record.pp and record.pp > old_pp:
                     stat.best_pp_record = record
                     dirty = True
 

@@ -86,13 +86,10 @@ async def websocket_game_handler(websocket: WebSocket, map_id: int, token: str):
             await User.filter(id=user.id).update(total_attempts=F("total_attempts") + 1)
 
         # 시작 확인 전송
-        await websocket.send_json(
-            SessionStarted(session_id=session_id, map_id=map_id).model_dump()
-        )
+        await websocket.send_json(SessionStarted(session_id=session_id, map_id=map_id).model_dump())
 
         # 메시지 수신 루프
         while True:
-            await websocket.send_json(SessionStarted(session_id=session_id, map_id=map_id).model_dump())
             data = await websocket.receive_json()
             await manager.dispatch(websocket, session_id, data)
 
