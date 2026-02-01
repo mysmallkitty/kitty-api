@@ -38,7 +38,7 @@ async def clear(request: GameClearRequest, user=Depends(get_current_user)):
 
     rank_before = await ranking_service.get_rank(user.id) or 0
 
-    clear_time = int((time.time() - session.start_time) * 1000)
+    clear_time = int((time.time() - session.start_time) * 1000) # 클라 시간 + 서버 시간 오차남...
     session.is_cleared = True
 
     # 2. Record 생성
