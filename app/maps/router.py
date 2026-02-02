@@ -94,8 +94,6 @@ async def create_map(
             detail=detail,
             rating=rating,
             creator=current_user,
-            map_url="not-set",
-            preview_url="not-set",
         )
     except IntegrityError:
         raise HTTPException(status_code=400, detail="invalid map data")

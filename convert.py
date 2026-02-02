@@ -8,5 +8,9 @@ TRANS = str.maketrans({s: d for s, d in zip(SRC, DST)})
 
 def convert(text: str) -> str:
 	return text.translate(TRANS)
-
-print(convert("rr00rrrrrrrrrr0rr0000r000800r000rq00808880000800rqqq00800000qq80rq000q02qquuqqq8r00qqu25q252uqqqr0qqr22022022rq02v20ru2222222r0quu2qrruu22uurrq0o2grrrr22urrrrrqoogr22gouuog22rroogguung80pnuu2roogggnnn80nnnnu2rnnoonnn80nnnroorroornnn80nnnrogrrrrrnnn80nnnrog"))
+while True:
+	user_input = input("변환할 문자열을 입력하세요 (종료하려면 'exit' 입력): ")
+	if user_input.lower() == 'exit':
+		break
+	converted = convert(user_input)
+	print(f"{converted}")
