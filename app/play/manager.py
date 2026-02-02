@@ -20,6 +20,7 @@ from app.play.schemas import (
 )
 from app.records.models import Record, Stat
 from app.records.pp.calculate_pp import calculate_pp
+from app.records.pp.total_pp import recompute_total_pp
 from app.records.redis_services import ranking_service
 from app.maps.models import Map
 from app.user.models import User
@@ -161,23 +162,6 @@ async def handle_chat(websocket: WebSocket, session_id: str, data: dict):
     await manager.broadcast(session_id, broadcast.model_dump())
 
 
-async def _recompute_total_pp(user_id: int) -> float:
-    records = (
-        await Record.filter(user_id=user_id, pp__not_isnull=True)
-        .order_by("-pp")
-        .limit(100)
-    )
-    total = 0.0
-    weight = 1.0
-    decay = 0.95
-    for r in records:
-        if r.pp is None:
-            continue
-        total += float(r.pp) * weight
-        weight *= decay
-    return total
-
-
 @manager.handler("clear")
 async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
     try:
@@ -244,7 +228,7 @@ async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
             await best_record.save()
 
         if current_pp > old_pp:
-            new_total_pp = await _recompute_total_pp(session.user_id)
+            new_total_pp = await recompute_total_pp(session.user_id)
             await User.filter(id=session.user_id).update(total_pp=new_total_pp)
             await ranking_service.update_user_pp(session.user_id, new_total_pp)
 

@@ -84,7 +84,9 @@ def _time_factor(clear_time: int, expected_time: float) -> float:
         return 1.0 - (TIME_WEIGHT * 0.5)
 
     ratio = expected_time / float(clear_time)
-    ratio = _clamp(ratio, 0.25, 4.0)
+    # Keep a low-end clamp to avoid extreme penalties, but allow faster clears
+    # to keep improving PP (no hard upper cap).
+    ratio = max(ratio, 0.25)
 
     s = 0.5 + 0.5 * math.tanh(TIME_TANH_K * math.log(ratio))  # 0..1
     return (1.0 - TIME_WEIGHT) + (TIME_WEIGHT * s)

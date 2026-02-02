@@ -16,8 +16,8 @@ from pydantic import BaseModel
 
 class UserLeaderboardSchema(BaseModel):
     model_config = {"from_attributes": True}
+    rank: int = Field(ge=0, default=0)
     username: str
-    profile_img_url: str | None
-    country: str | None
+    profile_sprite: str
     total_pp: float = Field(ge=0)
     total_clears: int = Field(ge=0)

@@ -10,6 +10,7 @@ from app.play.schemas import ClearSuccess, GameClearRequest
 from app.play.websocket import verify_websocket_token, websocket_game_handler
 from app.records.models import Record, Stat
 from app.records.pp.calculate_pp import calculate_pp
+from app.records.pp.total_pp import recompute_total_pp
 from app.records.redis_services import ranking_service
 from app.user.models import User
 
@@ -30,7 +31,7 @@ async def get_current_user(
     return await verify_websocket_token(credentials.credentials)
 
 
-# 게임 클리어
+
 @router.post("/clear", response_model=ClearSuccess)
 async def clear(request: GameClearRequest, user=Depends(get_current_user)):
     session = manager.get_session(request.session_id)
@@ -55,10 +56,10 @@ async def clear(request: GameClearRequest, user=Depends(get_current_user)):
             self.deaths = deaths
             self.clear_time = clear_time
 
-    # pp 계산 (랭크맵일때만)
-    current_pp = 0
+
+    current_pp = 0.0
     if map_obj.is_ranked:
-        current_pp = int(calculate_pp(map_obj, TempRecord(session.deaths, clear_time)))
+        current_pp = float(calculate_pp(map_obj, TempRecord(session.deaths, clear_time)))
 
     async with in_transaction():
         stat, _ = await Stat.get_or_create(user_id=session.user_id, map_id=session.map_id)
@@ -72,25 +73,20 @@ async def clear(request: GameClearRequest, user=Depends(get_current_user)):
         old_pp = best_record.pp if best_record and best_record.pp else 0
 
         if current_pp > old_pp:
-            pp_diff = current_pp - old_pp
-            
             if best_record:
-                # 기존 기록 업데이트
                 best_record.pp = current_pp
                 best_record.clear_time = clear_time
                 best_record.deaths = session.deaths
                 await best_record.save()
             else:
-                # 새 기록 생성
                 await Record.create(
                     user_id=user.id, map_id=session.map_id,
                     pp=current_pp, clear_time=clear_time, deaths=session.deaths, replay_url=""
                 )
 
-            await User.filter(id=user.id).update(total_pp=F("total_pp") + pp_diff)
-            
-            updated_user = await User.get(id=user.id)
-            await ranking_service.update_user_pp(user.id, updated_user.total_pp)
+            new_total_pp = await recompute_total_pp(user.id)
+            await User.filter(id=user.id).update(total_pp=new_total_pp)
+            await ranking_service.update_user_pp(user.id, new_total_pp)
 
     # 결과 반환
     rank = await ranking_service.get_rank(user.id)
@@ -107,12 +103,9 @@ async def clear(request: GameClearRequest, user=Depends(get_current_user)):
 async def play_map(websocket: WebSocket, map_id: int, token: str):
     """
     게임 플레이 WebSocket 엔드포인트
-
-    클라이언트 → 서버 메시지:
     - {"type": "position", "pos": {"x": 100, "y": 200}}  # 100ms마다
-    - {"type": "death"}  # 죽을 때마다
+    - {"type": "death"}
 
-    서버 → 클라이언트 메시지:
     - {"type": "session_started", "session_id": "...", "map_id": 1}
     - {"type": "death_ack", "total_deaths": 5}
     - {"type": "error", "message": "..."}
