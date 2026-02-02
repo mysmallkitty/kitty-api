@@ -1,30 +1,8 @@
 from fastadmin import TortoiseModelAdmin, register, action
-from fastapi import Request
 from app.admin.inline import MapInline, RecordInline, StatInline, UserRecordInline, UserStatInline
 from app.maps.models import Map
 from app.records.models import Record, Stat
 from app.user.models import Roles, User
-from fastadmin import DashboardWidgetAdmin, DashboardWidgetType, register_widget
-
-@register_widget
-class UsersDashboardWidgetAdmin(DashboardWidgetAdmin):
-    dashboard_widgets = (
-        DashboardWidgetAdmin(
-            widget_type=DashboardWidgetType.STAT,
-            title="Total Users",
-            query=lambda: User.all().count(),
-        ),
-        DashboardWidgetAdmin(
-            widget_type=DashboardWidgetType.STAT,
-            title="Total Clears",
-            query=lambda: Record.all().count(),
-        ),
-        DashboardWidgetAdmin(
-            widget_type=DashboardWidgetType.CHART,
-            title="Top Players by PP",
-            query=lambda: User.all().order_by("-total_pp").limit(10),
-        ),
-    )
 
 @register(User)
 class UserAdmin(TortoiseModelAdmin):
