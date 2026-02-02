@@ -17,7 +17,6 @@ class MapListSchema(BaseModel):
     loved_count: int
     total_attempts: int = 0
     hash: str = ""
-    thumbnail_url: Optional[str] = Field(None, validation_alias=AliasPath("preview_url"))
 
 
 class MapDetailSchema(MapListSchema):
@@ -26,10 +25,6 @@ class MapDetailSchema(MapListSchema):
     best_time: int | None = None
     is_loved: bool = False
     detail: str
-    map_url: str
-    thumbnail_url: Optional[str] = Field(
-        None, validation_alias=AliasPath("preview_url")
-    )
     total_deaths: int = Field(ge=0)
     total_attempts: int = Field(ge=0)
     total_clears: int = Field(ge=0)
