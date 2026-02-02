@@ -18,6 +18,7 @@ dependencies = [
     "aerich[toml] (>=0.9.2,<0.10.0)",
     "fastapi-admin (==1.0.2)",
     "redis (>=5.0.0,<6.0.0)",
+    "fastadmin[fastapi,tortoise-orm] (>=0.2.22,<0.3.0)",
 ]
 
 

@@ -116,6 +116,21 @@ idna = ">=2.8"
 trio = ["trio (>=0.31.0) ; python_version < \"3.10\"", "trio (>=0.32.0) ; python_version >= \"3.10\""]
 
 [[package]]
+name = "asgiref"
+version = "3.11.0"
+description = "ASGI specs, helper code, and adapters"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "asgiref-3.11.0-py3-none-any.whl", hash = "sha256:1db9021efadb0d9512ce8ffaf72fcef601c7b73a8807a1bb2ef143dc6b14846d"},
+    {file = "asgiref-3.11.0.tar.gz", hash = "sha256:13acff32519542a1736223fb79a715acdebe24286d98e8b164a73085f40da2c4"},
+]
+
+[package.extras]
+tests = ["mypy (>=1.14.0)", "pytest", "pytest-asyncio"]
+
+[[package]]
 name = "async-timeout"
 version = "5.0.1"
 description = "Timeout context manager for asyncio programs"
@@ -643,6 +658,32 @@ files = [
 [package.dependencies]
 dnspython = ">=2.0.0"
 idna = ">=2.0.0"
+
+[[package]]
+name = "fastadmin"
+version = "0.2.22"
+description = "FastAdmin is an easy-to-use Admin Dashboard App for FastAPI/Flask/Django inspired by Django Admin."
+optional = false
+python-versions = "<4.0,>=3.10"
+groups = ["main"]
+files = [
+    {file = "fastadmin-0.2.22-py3-none-any.whl", hash = "sha256:4e8e1341a5097d9da7f2a8c5b925de8bf16253822e7b857a5d430d3b026251b8"},
+    {file = "fastadmin-0.2.22.tar.gz", hash = "sha256:51703a9e0a892ce2baeceb43cafef7f5ecbbc70ee17dd3f93f25277f81bdcbe0"},
+]
+
+[package.dependencies]
+asgiref = ">=3.7.0,<4.0.0"
+fastapi = {version = "==0.*", optional = true, markers = "extra == \"fastapi\""}
+pyjwt = ">=2.6.0,<3.0.0"
+tortoise-orm = {version = "==0.*", optional = true, markers = "extra == \"tortoise-orm\""}
+
+[package.extras]
+django = ["django (==5.*)"]
+fastapi = ["fastapi (==0.*)"]
+flask = ["flask (==3.*)"]
+pony = ["pony (==0.*)"]
+sqlalchemy = ["sqlalchemy[asyncio] (==2.*)"]
+tortoise-orm = ["tortoise-orm (==0.*)"]
 
 [[package]]
 name = "fastapi"
@@ -2725,4 +2766,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "26a53fc7112abcd5f773248848fa4a29bbbac2b0ff4acac2d4dc6d04668af9af"
+content-hash = "712554ba0e8c34311883ee69436faac6a81ca344d89db92e5c0437832d2001f5"
