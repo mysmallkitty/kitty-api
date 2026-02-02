@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from app.records.schemas import UserLeaderboardSchema
 from app.user.models import User
-from app.records.redis_services import global_stats_service, ccu_service
+from app.records.redis_services import global_stats_service, ccu_service, ranking_service
 
 router = APIRouter(
     prefix="/api/v1/records",
