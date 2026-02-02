@@ -11,7 +11,7 @@ from app.user.router import router as user_router
 from app.play.router import router as play_router
 from fastadmin import fastapi_app as admin_app
 from app.records.redis_services import ranking_service
-
+from app.admin import admin
 
 FIX_RANK_FLAG = "--fix_rank"
 FIX_RANK_ON_STARTUP = False
@@ -21,7 +21,6 @@ if FIX_RANK_FLAG in sys.argv:
 
 if os.getenv("FIX_RANK_ON_STARTUP", "").lower() in ("1", "true", "yes", "y"):
     FIX_RANK_ON_STARTUP = True
-
 
 ROUTERS = [
     user_router,
