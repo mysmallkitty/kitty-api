@@ -9,9 +9,9 @@ from app.maps.router import router as maps_router
 from app.records.router import router as records_router
 from app.user.router import router as user_router
 from app.play.router import router as play_router
-from app.admin.main import setup_admin
+from app.admin.app import admin_app
 from app.records.redis_services import ranking_service
-
+from app.admin import admin
 
 FIX_RANK_FLAG = "--fix_rank"
 FIX_RANK_ON_STARTUP = False
@@ -21,7 +21,6 @@ if FIX_RANK_FLAG in sys.argv:
 
 if os.getenv("FIX_RANK_ON_STARTUP", "").lower() in ("1", "true", "yes", "y"):
     FIX_RANK_ON_STARTUP = True
-
 
 ROUTERS = [
     user_router,
@@ -35,7 +34,6 @@ async def lifespan(app: FastAPI):
     await Tortoise.init(config=settings.TORTOISE_ORM)
     if FIX_RANK_ON_STARTUP:
         await ranking_service.rebuild_leaderboard(recompute_pp=True)
-    await setup_admin(app)
     yield
     await Tortoise.close_connections()
 
@@ -53,6 +51,9 @@ app.add_middleware(
 # 라우터 등록
 for router in ROUTERS:
     app.include_router(router)
+
+# 어드민 라우터 마운트
+app.mount("/admin", admin_app)
 
 
 # 헬스체크 엔드포인트

@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from app.records.schemas import UserLeaderboardSchema
 from app.user.models import User
-from app.records.redis_services import global_stats_service, ranking_service
+from app.records.redis_services import global_stats_service, ccu_service, ranking_service
 
 router = APIRouter(
     prefix="/api/v1/records",
@@ -44,3 +44,8 @@ async def get_today_cat_deaths():
     return {
         "recent_24h_deaths": count,
     }
+
+# 동시 접속자 반환
+@router.get("/ccu")
+async def get_ccu():
+    return await ccu_service.get_ccu()

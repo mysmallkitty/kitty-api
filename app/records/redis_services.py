@@ -79,3 +79,27 @@ class GlobalStatsService:
 
 
 global_stats_service = GlobalStatsService()
+
+class CCUService:
+    def __init__(self):
+        self.redis = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+        self.global_ccu_key = "global:ccu"
+        self.timeout = 30
+
+    # 접속 시간 갱신
+    async def heartbeat(self, user_id: int):
+        now = time.time()
+        await self.redis.zadd(self.global_ccu_key, {str(user_id): now})
+
+    # 유저반환
+    async def get_ccu(self):
+        cutoff = time.time() - self.timeout
+        await self.redis.zremrangebyscore(self.global_ccu_key, "-inf", cutoff)
+        count = await self.redis.zcard(self.global_ccu_key)
+        return {"global_ccu": count}
+
+    # 종료시 제거
+    async def disconnect(self, user_id: int):
+        await self.redis.zrem(self.global_ccu_key, str(user_id))
+
+ccu_service = CCUService()

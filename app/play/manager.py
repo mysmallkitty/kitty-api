@@ -20,8 +20,8 @@ from app.play.schemas import (
 )
 from app.records.models import Record, Stat
 from app.records.pp.calculate_pp import calculate_pp
-from app.records.pp.total_pp import recompute_total_pp
-from app.records.redis_services import ranking_service
+from app.records.services import pp_service, clear_service
+from app.records.redis_services import ranking_service, ccu_service
 from app.maps.models import Map
 from app.user.models import User
 
@@ -75,6 +75,8 @@ class GameWebSocketManager:
         session = self.get_session(session_id)
         if not session:
             return
+        await ccu_service.disconnect(session.user_id)
+        
         await self.broadcast(session_id, {"type": "peer_left", "user_id": session.user_id})
         map_id = session.map_id
         if map_id in self.map_sessions:
@@ -162,6 +164,7 @@ async def handle_chat(websocket: WebSocket, session_id: str, data: dict):
     await manager.broadcast(session_id, broadcast.model_dump())
 
 
+
 @manager.handler("clear")
 async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
     try:
@@ -174,65 +177,44 @@ async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
         return
 
     clear_time = int(data.get("clear_time", 0))
-    # Use client-reported deaths for the record (checkpoint resets),
-    # but keep server-side deaths for aggregate stats.
     record_deaths = int(data.get("deaths", 0))
-    stats_deaths = int(session.deaths or 0)
     session.clear_time = clear_time
     session.is_cleared = True
 
     map_obj = await Map.get(id=session.map_id)
-
-    class TempRecord:
-        def __init__(self, deaths, clear_time):
-            self.deaths = deaths
-            self.clear_time = clear_time
-
-    current_pp = 0.0
-    if map_obj.is_ranked:
-        current_pp = float(calculate_pp(map_obj, TempRecord(record_deaths, clear_time)))
+    current_pp = pp_service.calculate_pp_for_clear(map_obj, record_deaths, clear_time)
 
     async with in_transaction():
-        stat, _ = await Stat.get_or_create(user_id=session.user_id, map_id=session.map_id)
-        stat.deaths += stats_deaths
-        first_clear = not stat.is_cleared
-        stat.is_cleared = True
+        stat, created = await Stat.get_or_create(user_id=session.user_id, map_id=session.map_id)
+        
+        stat.deaths += int(session.deaths or 0)
+
+        if not stat.is_cleared:
+            stat.is_cleared = True
+            await clear_service.increment_global_clears(session.user_id, session.map_id)
+        
         await stat.save()
-
-        await Map.filter(id=session.map_id).update(
-            total_deaths=F("total_deaths") + stats_deaths,
-            total_clears=F("total_clears") + (1 if first_clear else 0),
+        await pp_service.update_record_and_ranking(
+            user_id=session.user_id,
+            map_id=session.map_id,
+            clear_time=clear_time,
+            deaths=record_deaths,
+            current_pp=current_pp
         )
-        await User.filter(id=session.user_id).update(
-            total_deaths=F("total_deaths") + stats_deaths,
-            total_clears=F("total_clears") + (1 if first_clear else 0),
-        )
-
-        best_record = await Record.filter(user_id=session.user_id, map_id=session.map_id).first()
-        old_pp = best_record.pp if best_record and best_record.pp else 0
-
-        # 항상 기록은 남기고, 랭크드 맵이면 PP 향상 시 랭킹 갱신
-        if best_record is None:
-            await Record.create(
-                user_id=session.user_id,
-                map_id=session.map_id,
-                pp=current_pp,
-                clear_time=clear_time,
-                deaths=record_deaths,
-                replay_url="",
-            )
-        elif current_pp > old_pp:
-            best_record.pp = current_pp
-            best_record.clear_time = clear_time
-            best_record.deaths = record_deaths
-            await best_record.save()
-
-        if current_pp > old_pp:
-            new_total_pp = await recompute_total_pp(session.user_id)
-            await User.filter(id=session.user_id).update(total_pp=new_total_pp)
-            await ranking_service.update_user_pp(session.user_id, new_total_pp)
 
     rank = await ranking_service.get_rank(session.user_id)
     await websocket.send_json(
-    ClearAck(clear_time=clear_time, deaths=record_deaths, pp=current_pp, rank=rank or 0).model_dump()
+        ClearAck(
+            clear_time=clear_time,
+            deaths=record_deaths,
+            pp=current_pp,
+            rank=rank or 0
+        ).model_dump()
     )
+
+@manager.handler("ping")
+async def handle_ping(websocket: WebSocket, session_id: str, data: dict):
+    session = manager.get_session(session_id)
+    if session:
+        await ccu_service.heartbeat(session.user_id)
+        await websocket.send_json({"type": "pong"})

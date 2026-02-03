@@ -4,7 +4,7 @@ from collections import defaultdict
 from fastapi import WebSocket, WebSocketDisconnect, HTTPException
 from tortoise.expressions import F
 from tortoise.transactions import in_transaction
-from app.records.redis_services import global_stats_service
+from app.records.redis_services import global_stats_service, ccu_service
 from app.maps.models import Map
 from app.records.models import Stat
 from app.user.models import User
@@ -73,6 +73,7 @@ async def websocket_game_handler(websocket: WebSocket, map_id: int, token: str):
     # 세션 생성
     session_id = f"{user.id}_{map_id}_{int(time.time() * 1000)}"
     await manager.connect(websocket, session_id, map_id, user.id)
+    await ccu_service.heartbeat(user.id)
 
     try:
         # 맵 시작하면 attemtps 증가 (user, map)
@@ -85,9 +86,7 @@ async def websocket_game_handler(websocket: WebSocket, map_id: int, token: str):
             await User.filter(id=user.id).update(total_attempts=F("total_attempts") + 1)
 
         # 시작 확인 전송
-        await websocket.send_json(
-            SessionStarted(session_id=session_id, map_id=map_id).model_dump()
-        )
+        await websocket.send_json(SessionStarted(session_id=session_id, map_id=map_id).model_dump())
 
         # 메시지 수신 루프
         while True:
