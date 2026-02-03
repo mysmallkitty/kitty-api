@@ -3,7 +3,7 @@ from pathlib import Path
 from fastadmin.settings import settings
 from fastapi.staticfiles import StaticFiles
 from fastadmin import fastapi_app as admin_app
-from app.admin import dashboard
+
 admin_app.mount(
     "/admin-custom-static",  
     StaticFiles(directory=Path(__file__).parent / "static"),
