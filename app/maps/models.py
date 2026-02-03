@@ -18,10 +18,6 @@ class Map(Model):
     # status
     is_ranked = fields.BooleanField(default=False)
 
-    # file paths
-    map_url = fields.CharField(max_length=255)
-    preview_url = fields.CharField(max_length=255, null=True)
-
     # cache
     hash = fields.CharField(max_length=64, default="")
     # stats

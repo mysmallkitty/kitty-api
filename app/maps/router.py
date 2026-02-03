@@ -94,16 +94,12 @@ async def create_map(
             detail=detail,
             rating=rating,
             creator=current_user,
-            map_url="not-set",
-            preview_url="not-set",
         )
     except IntegrityError:
         raise HTTPException(status_code=400, detail="invalid map data")
 
     map_path = _map_file_path(new_map.id)
     preview_path = _preview_file_path(new_map.id)
-    new_map.map_url = map_path
-    new_map.preview_url = preview_path
 
     map_bytes = _save_upload_file(map_file, map_path)
     _save_upload_file(preview_file, preview_path)
@@ -160,12 +156,10 @@ async def update_map_file(
     if map_file is not None:
         map_path = _map_file_path(map_obj.id)
         map_bytes = _save_upload_file(map_file, map_path)
-        map_obj.map_url = map_path
         map_obj.hash = sha256(map_bytes).hexdigest()
     if preview_file is not None:
         preview_path = _preview_file_path(map_obj.id)
         _save_upload_file(preview_file, preview_path)
-        map_obj.preview_url = preview_path
     await map_obj.save()
 
     return map_obj
@@ -193,14 +187,15 @@ async def update_map(
 
 @router.get("/{map_id}/download")
 async def download_map(map_obj: Map = Depends(get_valid_map)):
-    if not os.path.exists(map_obj.map_url):
+    map_path = _map_file_path(map_obj.id)
+    if not os.path.exists(map_path):
         raise HTTPException(status_code=404, detail="Map not found.")
 
     await Map.filter(id=map_obj.id).update(total_attempts=F("total_attempts") + 1)
     safe_filename = quote(f"{map_obj.title}.map")
 
     return FileResponse(
-        path=map_obj.map_url,
+        path=map_path,
         media_type="application/octet-stream",
         headers={
             "Content-Disposition": f"attachment; filename*=UTF-8''{safe_filename}"
@@ -241,12 +236,13 @@ async def toggle_like(
 
 @router.get("/{map_id}/preview")
 async def download_preview(map_obj: Map = Depends(get_valid_map)):
-    if not map_obj.preview_url or not os.path.exists(map_obj.preview_url):
+    preview_path = _preview_file_path(map_obj.id)
+    if not preview_path or not os.path.exists(preview_path):
         raise HTTPException(status_code=404, detail="Preview not found.")
 
     safe_filename = quote(f"{map_obj.title}_preview.map")
     return FileResponse(
-        path=map_obj.preview_url,
+        path=preview_path,
         media_type="application/octet-stream",
         headers={
             "Content-Disposition": f"attachment; filename*=UTF-8''{safe_filename}"

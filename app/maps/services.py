@@ -1,8 +1,8 @@
-﻿from tortoise.expressions import F
+﻿import os
+from tortoise.expressions import F
 
 from app.maps.dependencies import MapFilterParams
 from app.maps.models import Map
-
 
 async def get_filtered_maps(params: MapFilterParams):
     query = (

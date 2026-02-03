@@ -45,3 +45,4 @@ class UserUpdateSchema(BaseModel):
     password: Optional[str] = Field(None, max_length=255)
     email: Optional[str] = Field(None, max_length=100)
     profile_sprite: Optional[str] = Field(None, max_length=256)
+    player_sprite: Optional[str] = Field(None, max_length=81)
