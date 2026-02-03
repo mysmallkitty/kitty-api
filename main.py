@@ -9,7 +9,7 @@ from app.maps.router import router as maps_router
 from app.records.router import router as records_router
 from app.user.router import router as user_router
 from app.play.router import router as play_router
-from fastadmin import fastapi_app as admin_app
+from app.admin.app import admin_app
 from app.records.redis_services import ranking_service
 from app.admin import admin
 
