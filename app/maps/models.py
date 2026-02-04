@@ -6,17 +6,17 @@ class Map(Model):
 
     # metadata
     id = fields.IntField(pk=True)
-    title = fields.CharField(max_length=50)
+    title = fields.CharField(max_length=50, index=True)
     detail = fields.TextField()
 
-    rating = fields.FloatField(default=1.0)
+    rating = fields.FloatField(default=1.0, index=True)
     death_meter = fields.IntField(
         default=0
     )  # expected deaths per clear (for calculate pp) , 예상되는 죽음 횟수
-    creator = fields.ForeignKeyField("models.User", related_name="maps")
+    creator = fields.ForeignKeyField("models.User", related_name="maps", index=True)
 
     # status
-    is_ranked = fields.BooleanField(default=False)
+    is_ranked = fields.BooleanField(default=False, index=True)
 
     # cache
     hash = fields.CharField(max_length=64, default="")
