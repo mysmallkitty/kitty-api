@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import List, Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from pydantic import BaseModel
@@ -89,3 +89,23 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
             headers={"WWW-Authenticate": "Bearer"},
         )
     return result
+
+
+async def get_optional_user_from_token(request: Request) -> Optional[User]:
+    from app.user.service.token import decode_token
+    
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        return None
+    
+    if not auth_header.startswith("Bearer "):
+        return None
+    
+    token = auth_header.split(" ", 1)[1]
+    
+    try:
+        token_config = decode_token(token, expected_type="access")
+        user = await User.get_or_none(id=token_config.id)
+        return user
+    except:
+        return None

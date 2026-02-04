@@ -5,24 +5,25 @@ from tortoise.models import Model
 class Stat(Model):
 
     id = fields.IntField(pk=True)
-    map = fields.ForeignKeyField("models.Map", related_name="stats")
-    user = fields.ForeignKeyField("models.User", related_name="stats")
+    map = fields.ForeignKeyField("models.Map", related_name="stats", index=True)
+    user = fields.ForeignKeyField("models.User", related_name="stats", index=True)
     deaths = fields.IntField(default=0)
     attempts = fields.IntField(default=0)
     is_cleared = fields.BooleanField(default=False)
-    is_loved = fields.BooleanField(default=False)
+    is_loved = fields.BooleanField(default=False, index=True)
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
 
     class Meta:
         unique_together = ("user", "map")
+        indexes = (("user", "is_loved"),)
 
 
 class Record(Model):
 
     id = fields.IntField(pk=True)
-    map = fields.ForeignKeyField("models.Map", related_name="records")
-    user = fields.ForeignKeyField("models.User", related_name="records")
+    map = fields.ForeignKeyField("models.Map", related_name="records", index=True)
+    user = fields.ForeignKeyField("models.User", related_name="records", index=True)
     deaths = fields.IntField(default=0)
     clear_time = fields.IntField(null=True)
     pp = fields.IntField(null=True)

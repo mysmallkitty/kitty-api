@@ -5,29 +5,30 @@ from typing import Optional
 from urllib.parse import quote
 from tortoise.transactions import in_transaction
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Header
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Header, Request
 from fastapi.responses import FileResponse
 from tortoise.exceptions import IntegrityError
 from tortoise.expressions import F
 
 import app.maps.services as service
 from app.maps.dependencies import (
-    MapFilterParams,
     get_valid_map,
     get_valid_map_with_creator,
 )
 from app.maps.models import Map
 from app.maps.schemas import (
     MapDetailSchema,
+    MapListResponse,
     MapListSchema,
     MapUpdateSchema,
     MapCreateSchema,
     MapLeaderboardSchema,
+    MapFilterSchema,
 )
 from app.records.models import Record, Stat
 import settings
 from app.user.models import User
-from app.user.service.token import get_current_user, decode_token
+from app.user.service.token import get_current_user, decode_token, get_optional_user_from_token
 
 router = APIRouter(
     prefix="/api/v1/maps",
@@ -72,11 +73,12 @@ def _save_upload_file(upload: UploadFile, path: str) -> bytes:
     return data
 
 
-@router.get("/", response_model=list[MapListSchema])
-async def get_maps(params: MapFilterParams = Depends()):
-    maps = await service.get_filtered_maps(params)
-    return maps
-
+@router.get("/", response_model=MapListResponse)
+async def get_maps(
+    params: MapFilterSchema = Depends(),
+    user: Optional[User] = Depends(get_optional_user_from_token),
+):
+    return await service.get_filtered_maps_service(params, user)
 
 @router.post("/", response_model=MapDetailSchema)
 async def create_map(
@@ -203,8 +205,8 @@ async def download_map(map_obj: Map = Depends(get_valid_map)):
     )
 
 
-@router.post("/{map_id}/like")
-async def toggle_like(
+@router.post("/{map_id}/loved")
+async def toggle_loved(
     map_obj: Map = Depends(get_valid_map), user=Depends(get_current_user)
 ):
     async with in_transaction():
