@@ -205,8 +205,8 @@ async def download_map(map_obj: Map = Depends(get_valid_map)):
     )
 
 
-@router.post("/{map_id}/like")
-async def toggle_like(
+@router.post("/{map_id}/loved")
+async def toggle_loved(
     map_obj: Map = Depends(get_valid_map), user=Depends(get_current_user)
 ):
     async with in_transaction():
