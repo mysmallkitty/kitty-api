@@ -4,8 +4,8 @@ import httpx
 
 from app.user.models import Roles, User
 
-PROFILE_ALPHABET_32 = "lLpXrkbMmKVIGFECDBz6y4juD0mktnQP"
-PROFILE_ALPHABET_64 = "0123456789abcdefghijklmnopqrstuv"
+PROFILE_ALPHABET_32 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_"
+PROFILE_ALPHABET_64 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_"
 PLAYER_ALPHABET_64 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_"
 PLAYER_ALPHABET_32 = PLAYER_ALPHABET_64[:32]
 
@@ -16,7 +16,7 @@ def _validate_profile_sprite(user: User, sprite: str) -> None:
     if len(sprite) != 256:
         raise HTTPException(status_code=400, detail="Invalid profile sprite length.")
     
-    allowed = PLAYER_ALPHABET_64 if user.role == Roles.SUPPORT.value else PLAYER_ALPHABET_32
+    allowed = PROFILE_ALPHABET_64 if user.role == Roles.SUPPORT.value else PROFILE_ALPHABET_32
     for ch in sprite:
         if ch not in allowed:
             raise HTTPException(status_code=400, detail="Invalid profile sprite data.")
