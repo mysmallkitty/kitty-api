@@ -1,36 +1,65 @@
-﻿import os
-from tortoise.expressions import F
-
-from app.maps.dependencies import MapFilterParams
+﻿from typing import Optional
+from app.maps.schemas import MapFilterSchema
 from app.maps.models import Map
+from app.user.models import User
 
-async def get_filtered_maps(params: MapFilterParams):
+async def get_filtered_maps_service(params: MapFilterSchema, user: Optional[User] = None):
     query = (
         Map.all()
+        .select_related("creator")
         .only(
             "id",
-            "creator_id",
+            "creator__username",
             "title",
             "rating",
+            "is_ranked",
             "loved_count",
             "total_attempts",
-            "is_ranked",
             "hash",
         )
-        .prefetch_related("creator")
     )
 
-    if params.title:
-        query = query.filter(title__icontains=params.title.strip())
+    if params.map_id:
+        query = query.filter(id=params.map_id)
+
+    if params.title and len(params.title) >= 2:
+        query = query.filter(title__istartswith=params.title.strip())
+
     if params.creator:
-        query = query.filter(creator__username__icontains=params.creator.strip())
+        query = query.filter(creator__username__istartswith=params.creator.strip())
+
+    if params.ranked_only:
+        query = query.filter(is_ranked=True)
+
+    if params.loved_only:
+        if not user:
+            return {"total": 0, "items": []}
+        
+        query = query.filter(
+            stats__user_id=user.id,
+            stats__is_loved=True,
+        ).distinct()
+
+    if params.rating_min is not None:
+        query = query.filter(rating__gte=params.rating_min)
+
+    if params.rating_max is not None:
+        query = query.filter(rating__lte=params.rating_max)
+
+    total = await query.count()
 
     sort_map = {
         "latest": "-id",
         "plays": "-total_attempts",
-        "difficulty": "-rating",
         "loved": "-loved_count",
+        "rating": "-rating",
     }
-    query = query.order_by(sort_map.get(params.sort, "-id"))
 
-    return await query.offset(params.offset).limit(params.size)
+    items = await query.order_by(
+        sort_map.get(params.sort, "-id")
+    ).offset(params.offset).limit(params.size)
+
+    return {
+        "total": total,
+        "items": items,
+    }

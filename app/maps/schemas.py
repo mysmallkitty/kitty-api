@@ -18,6 +18,10 @@ class MapListSchema(BaseModel):
     total_attempts: int = 0
     hash: str = ""
 
+class MapListResponse(BaseModel):
+    total: int
+    items: list[MapListSchema]
+
 
 class MapDetailSchema(MapListSchema):
     user_attempts: int = 0
@@ -90,8 +94,18 @@ class MapLeaderboardSchema(BaseModel):
 
         return cls.model_validate(map_obj)
 
+class MapFilterSchema(BaseModel):
+    title: Optional[str] = None
+    creator: Optional[str] = None
+    map_id: Optional[int] = None
 
+    sort: str = "latest"  # latest | plays | loved | rating
 
+    ranked_only: bool = False
+    loved_only: bool = False
 
+    rating_min: Optional[float] = None
+    rating_max: Optional[float] = None
 
-
+    offset: int = 0
+    size: int = Field(20, gt=0, le=100)
