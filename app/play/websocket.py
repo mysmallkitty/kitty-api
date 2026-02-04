@@ -33,14 +33,14 @@ async def handle_session_end(session_id: str):
     await global_stats_service.record_deaths(session.deaths)
 
     async with in_transaction():
-        stat, _ = await Stat.get_or_create(
-            user_id=session.user_id, map_id=session.map_id
-        )
-        stat.deaths += session.deaths
+        if not session.is_cleared:
+            stat, _ = await Stat.get_or_create(
+                user_id=session.user_id, map_id=session.map_id
+            )
+            stat.deaths += session.deaths
+            await stat.save()
 
-        await stat.save()
-
-        # session.deaths 만큼 user, map 에 total deaths 추가
+        # session.deaths ?? user, map ? total deaths ??
         await Map.filter(id=session.map_id).update(
             total_deaths=F("total_deaths") + session.deaths
         )

@@ -17,6 +17,7 @@ class MapListSchema(BaseModel):
     loved_count: int
     total_attempts: int = 0
     hash: str = ""
+    is_loved: bool = False
 
 class MapListResponse(BaseModel):
     total: int
