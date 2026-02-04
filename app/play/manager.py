@@ -187,8 +187,6 @@ async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
     async with in_transaction():
         stat, created = await Stat.get_or_create(user_id=session.user_id, map_id=session.map_id)
         
-        stat.deaths += int(session.deaths or 0)
-
         if not stat.is_cleared:
             stat.is_cleared = True
             await clear_service.increment_global_clears(session.user_id, session.map_id)
