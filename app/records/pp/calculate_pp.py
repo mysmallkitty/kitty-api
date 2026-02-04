@@ -17,7 +17,7 @@ DEATH_POWER = 1.15  # 데스 민감도
 FLAWLESS_GAP = 0.10  # 퍼펙트런시 더 높게
 
 SECONDS_PER_EXPECTED_DEATH = 1800  # 만약 clear_time이 프레임 단위면 1800.0으로
-TIME_WEIGHT = 0.10  # 시간 가중치
+TIME_WEIGHT = 0.3  # 시간 가중치
 TIME_TANH_K = 0.9  # 시간 민감도 조절 상수
 
 

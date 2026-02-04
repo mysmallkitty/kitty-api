@@ -255,9 +255,13 @@ async def download_preview(map_obj: Map = Depends(get_valid_map)):
 @router.get("/{map_id}/leaderboard", response_model=MapLeaderboardSchema)
 async def get_map_leaderboard(map_obj: Map = Depends(get_valid_map_with_creator)):
     records = await (
-        Record.filter(map_id=map_obj.id, pp__not_isnull=True)
+        Record.filter(
+            map_id=map_obj.id,
+            pp__not_isnull=True,
+            clear_time__not_isnull=True,
+        )
         .prefetch_related("user")
-        .order_by("-pp", "clear_time")
+        .order_by("clear_time", "deaths", "-pp")
         .limit(20)
     )
 
