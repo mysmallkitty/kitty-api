@@ -2,6 +2,7 @@
 from app.maps.schemas import MapFilterSchema
 from app.maps.models import Map
 from app.user.models import User
+from app.records.models import Stat
 
 async def get_filtered_maps_service(params: MapFilterSchema, user: Optional[User] = None):
     query = (
@@ -58,6 +59,18 @@ async def get_filtered_maps_service(params: MapFilterSchema, user: Optional[User
     items = await query.order_by(
         sort_map.get(params.sort, "-id")
     ).offset(params.offset).limit(params.size)
+
+    if user and items:
+        map_ids = [item.id for item in items]
+        loved_ids = set(
+            await Stat.filter(
+                user_id=user.id,
+                map_id__in=map_ids,
+                is_loved=True,
+            ).values_list("map_id", flat=True)
+        )
+        for item in items:
+            item.is_loved = item.id in loved_ids
 
     return {
         "total": total,
