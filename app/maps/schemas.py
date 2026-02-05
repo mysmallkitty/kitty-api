@@ -18,6 +18,7 @@ class MapListSchema(BaseModel):
     total_attempts: int = 0
     hash: str = ""
     is_loved: bool = False
+    pp: float = Field(0.0, ge=0.0)
 
 class MapListResponse(BaseModel):
     total: int

@@ -2,7 +2,7 @@
 from app.maps.schemas import MapFilterSchema
 from app.maps.models import Map
 from app.user.models import User
-from app.records.models import Stat
+from app.records.models import Stat, Record
 
 async def get_filtered_maps_service(params: MapFilterSchema, user: Optional[User] = None):
     query = (
@@ -69,8 +69,24 @@ async def get_filtered_maps_service(params: MapFilterSchema, user: Optional[User
                 is_loved=True,
             ).values_list("map_id", flat=True)
         )
+        best_pp_records = await (
+            Record.filter(
+                user_id=user.id,
+                map_id__in=map_ids,
+                pp__not_isnull=True,
+            )
+            .order_by("map_id", "-pp")
+            .values("map_id", "pp")
+        )
+        best_pp_by_map = {}
+        for record in best_pp_records:
+            map_id = record["map_id"]
+            if map_id not in best_pp_by_map:
+                best_pp_by_map[map_id] = float(record["pp"] or 0.0)
+
         for item in items:
             item.is_loved = item.id in loved_ids
+            item.pp = best_pp_by_map.get(item.id, 0.0)
 
     return {
         "total": total,
