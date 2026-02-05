@@ -40,9 +40,6 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     if not user.verify_password(form_data.password):
         raise HTTPException(status_code=400, detail="Wrong Password")
 
-    user.last_login_at = datetime.now()
-    await user.save(update_fields=["last_login_at"])
-
     access_token = create_access_token(user.id)
     refresh_token = create_refresh_token(user.id)
     return TokenResponse(
