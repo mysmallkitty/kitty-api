@@ -111,6 +111,21 @@ class CCUService:
         cutoff = time.time() - self.ttl
         return await self.redis.zcount(self.key, cutoff, "+inf")
 
+    async def get_online_ids(self, user_ids: list[int]) -> set[int]:
+        if not user_ids:
+            return set()
+
+        async with self.redis.pipeline(transaction=False) as pipe:
+            for uid in user_ids:
+                pipe.zscore(self.key, f"user:{uid}")
+            scores = await pipe.execute()
+
+        now = time.time()
+        return {
+            uid for uid, score in zip(user_ids, scores) 
+            if score and score > (now - self.ttl)
+        }
+    
     async def _cleanup_loop(self):
         while True:
             cutoff = time.time() - self.ttl
@@ -121,16 +136,5 @@ class CCUService:
         if self._cleanup_task is None:
             self._cleanup_task = asyncio.create_task(self._cleanup_loop())
 
-    async def get_online_ids(self, user_ids: list[int]) -> set[int]:
-        async with self.redis.pipeline(transaction=False) as pipe:
-            for uid in user_ids:
-                pipe.zscore(self.key, str(uid))
-            scores = await pipe.execute()
-
-        now = time.time()
-        return {
-            uid for uid, score in zip(user_ids, scores) 
-            if score and score > (now - self.ttl)
-        }
 
 ccu_service = CCUService(REDIS_URL)
