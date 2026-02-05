@@ -1,4 +1,6 @@
-﻿import time
+﻿import asyncio
+import datetime
+import time
 
 import redis.asyncio as redis
 from settings import REDIS_URL
@@ -81,25 +83,27 @@ class GlobalStatsService:
 global_stats_service = GlobalStatsService()
 
 class CCUService:
-    def __init__(self):
-        self.redis = redis.Redis.from_url(REDIS_URL, decode_responses=True)
-        self.global_ccu_key = "global:ccu"
-        self.timeout = 30
+    def __init__(self, redis_url: str):
+        self.redis = redis.from_url(redis_url, decode_responses=True)
+        self.key = "global:online_users"
+        self.ttl = 30 
+        self._cleanup_task = None
 
-    # 접속 시간 갱신
-    async def heartbeat(self, user_id: int):
-        now = time.time()
-        await self.redis.zadd(self.global_ccu_key, {str(user_id): now})
+    async def ping(self, user_id: int):
+        await self.redis.zadd(self.key, {str(user_id): time.time()})
 
-    # 유저반환
-    async def get_ccu(self):
-        cutoff = time.time() - self.timeout
-        await self.redis.zremrangebyscore(self.global_ccu_key, "-inf", cutoff)
-        count = await self.redis.zcard(self.global_ccu_key)
-        return {"global_ccu": count}
+    async def get_ccu(self) -> int:
+        cutoff = time.time() - self.ttl
+        return await self.redis.zcount(self.key, cutoff, "+inf")
 
-    # 종료시 제거
-    async def disconnect(self, user_id: int):
-        await self.redis.zrem(self.global_ccu_key, str(user_id))
+    async def _cleanup_loop(self):
+        while True:
+            cutoff = time.time() - self.ttl
+            await self.redis.zremrangebyscore(self.key, "-inf", cutoff)
+            await asyncio.sleep(10)
 
-ccu_service = CCUService()
+    def start_cleanup(self):
+        if self._cleanup_task is None:
+            self._cleanup_task = asyncio.create_task(self._cleanup_loop())
+
+ccu_service = CCUService(REDIS_URL)
