@@ -21,7 +21,7 @@ from app.play.schemas import (
 from app.records.models import Record, Stat
 from app.records.pp.calculate_pp import calculate_pp
 from app.records.services import pp_service, clear_service
-from app.records.redis_services import ranking_service, ccu_service
+from app.records.redis_services import ranking_service
 from app.maps.models import Map
 from app.user.models import User
 
@@ -75,7 +75,6 @@ class GameWebSocketManager:
         session = self.get_session(session_id)
         if not session:
             return
-        await ccu_service.disconnect(session.user_id)
         
         await self.broadcast(session_id, {"type": "peer_left", "user_id": session.user_id})
         map_id = session.map_id
@@ -209,10 +208,3 @@ async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
             rank=rank or 0
         ).model_dump()
     )
-
-@manager.handler("ping")
-async def handle_ping(websocket: WebSocket, session_id: str, data: dict):
-    session = manager.get_session(session_id)
-    if session:
-        await ccu_service.heartbeat(session.user_id)
-        await websocket.send_json({"type": "pong"})
