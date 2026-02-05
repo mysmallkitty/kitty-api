@@ -46,3 +46,11 @@ class UserUpdateSchema(BaseModel):
     email: Optional[str] = Field(None, max_length=100)
     profile_sprite: Optional[str] = Field(None, max_length=256)
     player_sprite: Optional[str] = Field(None, max_length=81)
+
+class UserSearchResponse(BaseModel):
+    id: int
+    profile_sprite: str
+    username: str
+    rank: int
+    country: str
+    level: int

@@ -12,7 +12,7 @@ from tortoise.expressions import Q
 from tortoise.transactions import in_transaction
 from app.user.models import FriendRequest, FriendRequestStatus, Friendship, User
 from app.user.schemas.token import TokenRefreshRequest, TokenResponse
-from app.user.schemas.user import UserMe, UserOut, UserRegisterSchema, UserUpdateSchema
+from app.user.schemas.user import UserMe, UserOut, UserRegisterSchema, UserSearchResponse, UserUpdateSchema
 from app.user.service.auth import (
     get_client_country,
     update_user,
@@ -106,6 +106,36 @@ async def get_user_profile(user_id: int):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return await UserOut.from_user(user)
+
+# 유저 검색
+@router.get("/users/search", response_model=list[UserSearchResponse])
+async def search_users(
+    q: str, 
+    limit: int = 20, 
+):
+    users = await User.filter(
+        username__istartswith=q
+    ).only("id", "username", "profile_sprite", "country", "level").limit(limit)
+
+    if not users:
+        return []
+
+    user_ids = [u.id for u in users]
+    rank_map = await ranking_service.get_ranks_batch(user_ids)
+
+    results = []
+    for u in users:
+        user_data = {
+            "id": u.id,
+            "profile_sprite": u.profile_sprite,
+            "username": u.username,
+            "rank": rank_map.get(u.id, "Unranked"),
+            "country": u.country,
+            "level": u.level
+        }
+        results.append(UserSearchResponse(**user_data))
+    return results
+
 
 # 친구 요청
 @router.post("/friends/request/{target_id}")
