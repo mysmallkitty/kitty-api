@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import datetime
@@ -6,13 +7,14 @@ import httpx
 from tortoise.exceptions import DoesNotExist, IntegrityError
 from app.maps.dependencies import get_valid_map
 from app.records.models import Stat
+from app.user.service.user import get_filtered_users_service
 import settings
 from app.maps.models import Map
 from tortoise.expressions import Q
 from tortoise.transactions import in_transaction
 from app.user.models import FriendRequest, FriendRequestStatus, Friendship, User
 from app.user.schemas.token import TokenRefreshRequest, TokenResponse
-from app.user.schemas.user import UserMe, UserOut, UserRegisterSchema, UserSearchResponse, UserUpdateSchema
+from app.user.schemas.user import UserFilterSchema, UserListResponse, UserMe, UserOut, UserRegisterSchema, UserUpdateSchema
 from app.user.service.auth import (
     get_client_country,
     update_user,
@@ -23,6 +25,7 @@ from app.user.service.token import (
     create_refresh_token,
     decode_token,
     get_current_user,
+    get_optional_user_from_token,
 )
 from utils import TimeUtil
 
@@ -108,34 +111,12 @@ async def get_user_profile(user_id: int):
     return await UserOut.from_user(user)
 
 # 유저 검색
-@router.get("/users/search", response_model=list[UserSearchResponse])
-async def search_users(
-    q: str, 
-    limit: int = 20, 
-):
-    users = await User.filter(
-        username__istartswith=q
-    ).only("id", "username", "profile_sprite", "country", "level").limit(limit)
-
-    if not users:
-        return []
-
-    user_ids = [u.id for u in users]
-    rank_map = await ranking_service.get_ranks_batch(user_ids)
-
-    results = []
-    for u in users:
-        user_data = {
-            "id": u.id,
-            "profile_sprite": u.profile_sprite,
-            "username": u.username,
-            "rank": rank_map.get(u.id, "Unranked"),
-            "country": u.country,
-            "level": u.level
-        }
-        results.append(UserSearchResponse(**user_data))
-    return results
-
+@router.get("/", response_model= UserListResponse)
+async def get_users(
+    params : UserFilterSchema = Depends(),
+    user: Optional[User] = Depends(get_optional_user_from_token)
+    ):
+    return await get_filtered_users_service(params, user)
 
 # 친구 요청
 @router.post("/friends/request/{target_id}")
