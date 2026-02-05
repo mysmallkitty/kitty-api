@@ -119,11 +119,29 @@ async def get_map_detail(
 ):
     if current_user:
         stat = await Stat.get_or_none(user_id=current_user.id, map_id=map_obj.id)
-        record = await Record.filter(user_id=current_user.id, map_id=map_obj.id).first()
+        best_time_record = await (
+            Record.filter(
+                user_id=current_user.id,
+                map_id=map_obj.id,
+                clear_time__not_isnull=True,
+            )
+            .order_by("clear_time", "deaths")
+            .first()
+        )
+        best_pp_record = await (
+            Record.filter(
+                user_id=current_user.id,
+                map_id=map_obj.id,
+                pp__not_isnull=True,
+            )
+            .order_by("-pp", "clear_time")
+            .first()
+        )
         map_obj.user_attempts = stat.attempts if stat else 0
         map_obj.user_deaths = stat.deaths if stat else 0
         map_obj.is_loved = stat.is_loved if stat else False
-        map_obj.best_time = record.clear_time if record else None
+        map_obj.best_time = best_time_record.clear_time if best_time_record else None
+        map_obj.pp = float(best_pp_record.pp) if best_pp_record and best_pp_record.pp is not None else 0.0
     return map_obj
 
 
