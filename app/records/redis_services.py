@@ -40,6 +40,20 @@ class RankingService:
     async def get_leaderboard_page(self, offset: int, limit: int):
         end = max(offset + limit - 1, 0)
         return await self.redis.zrevrange(self.key, offset, end, withscores=True)
+    
+    async def get_ranks_batch(self, user_ids: list[int]) -> dict[int, int | None]:
+        if not user_ids:
+            return {}
+
+        async with self.redis.pipeline(transaction=False) as pipe:
+            for uid in user_ids:
+                pipe.zrevrank(self.key, str(uid))
+            raw_ranks = await pipe.execute()
+            
+        return {
+            uid: (rank + 1 if rank is not None else None)
+            for uid, rank in zip(user_ids, raw_ranks)
+        }
 
 
 ranking_service = RankingService()
@@ -105,5 +119,17 @@ class CCUService:
     def start_cleanup(self):
         if self._cleanup_task is None:
             self._cleanup_task = asyncio.create_task(self._cleanup_loop())
+
+    async def get_online_ids(self, user_ids: list[int]) -> set[int]:
+        async with self.redis.pipeline(transaction=False) as pipe:
+            for uid in user_ids:
+                pipe.zscore(self.key, str(uid))
+            scores = await pipe.execute()
+        
+        now = time.time()
+        return {
+            uid for uid, score in zip(user_ids, scores) 
+            if score and score > (now - self.ttl)
+        }
 
 ccu_service = CCUService(REDIS_URL)
