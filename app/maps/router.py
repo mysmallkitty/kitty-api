@@ -266,26 +266,3 @@ async def get_map_leaderboard(map_obj: Map = Depends(get_valid_map_with_creator)
     )
 
     return MapLeaderboardSchema.from_map_records(map_obj, records)
-
-
-# @router.get("/{map_id}/leaderboard/pp")
-# async def leaderboard_pp(map_obj: Map = Depends(get_valid_map_with_creator)):
-#     stats = (
-#         await Stat.filter(map_id=map_obj.id, best_pp_record__not_isnull=True)
-#         .prefetch_related("best_pp_record__user")
-#         .order_by("-best_pp_record__pp", "best_pp_record__clear_time")
-#         .limit(20)
-#     )
-
-#     return stats
-
-# @router.get("/{map_id}/leaderboard/time")
-# async def leaderboard_time(map_obj: Map = Depends(get_valid_map_with_creator)):
-#     stats = (
-#         await Stat.filter(map_id=map_obj.id, best_time_record__not_isnull=True)
-#         .prefetch_related("best_time_record__user")
-#         .order_by("best_time_record__clear_time")
-#         .limit(20)
-#     )
-
-#     return stats
