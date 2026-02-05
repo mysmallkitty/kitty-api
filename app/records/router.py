@@ -1,4 +1,8 @@
-from fastapi import APIRouter
+import asyncio
+import datetime
+from fastapi import APIRouter, Depends, Request
+from sse_starlette import EventSourceResponse
+from app.play.router import get_current_user
 from app.records.schemas import UserLeaderboardSchema
 from app.user.models import User
 from app.records.redis_services import global_stats_service, ccu_service, ranking_service
@@ -49,3 +53,24 @@ async def get_today_cat_deaths():
 @router.get("/ccu")
 async def get_ccu():
     return await ccu_service.get_ccu()
+
+# 유저 접속
+@router.get("/presence/stream")
+async def presence_stream(request: Request, current_user: User = Depends(get_current_user)):
+    async def event_generator():
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                
+                await ccu_service.ping(current_user.id)
+                yield {"event": "ping", "data": "staying_alive"}
+                await asyncio.sleep(15)
+
+        except asyncio.CancelledError:
+            pass
+
+        finally:
+            await User.filter(id=current_user.id).update(last_login_at=datetime.now())
+
+    return EventSourceResponse(event_generator())
