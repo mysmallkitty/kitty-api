@@ -1,4 +1,5 @@
-import datetime
+from datetime import datetime, timezone
+
 
 
 class TimeUtil:
@@ -7,7 +8,7 @@ class TimeUtil:
         if not last_login_at:
             return ""
 
-        now = datetime.now(datetime.timezone.utc) if last_login_at.tzinfo else datetime.now()
+        now = datetime.now(timezone.utc) if last_login_at.tzinfo else datetime.now()
         delta = now - last_login_at
         seconds = int(delta.total_seconds())
 
