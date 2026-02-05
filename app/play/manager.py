@@ -174,6 +174,8 @@ async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
     session = manager.get_session(session_id)
     if not session or session.is_cleared:
         return
+    
+    rank_before = await ranking_service.get_rank(session.user_id)
 
     clear_time = int(data.get("clear_time", 0))
     record_deaths = int(data.get("deaths", 0))
@@ -199,12 +201,20 @@ async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
             current_pp=current_pp
         )
 
-    rank = await ranking_service.get_rank(session.user_id)
+    rank_after = await ranking_service.get_rank(session.user_id)
+
+    rank_diff = 0
+    if rank_before is not None and rank_after is not None:
+        rank_diff = rank_before - rank_after
+    elif rank_before is None and rank_after is not None:
+        rank_diff = 0
+
     await websocket.send_json(
-        ClearAck(
-            clear_time=clear_time,
-            deaths=record_deaths,
-            pp=current_pp,
-            rank=rank or 0
-        ).model_dump()
-    )
+            ClearAck(
+                clear_time=clear_time,
+                deaths=record_deaths,
+                pp=current_pp,
+                rank=rank_after or 0,
+                rank_diff=rank_diff
+            ).model_dump()
+        )

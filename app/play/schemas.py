@@ -37,6 +37,7 @@ class ClearAck(WebSocketResponse):
     deaths: int
     pp: float
     rank: int
+    rank_diff : int
 
 
 # --- Incoming Messages (Client -> Server) ---
