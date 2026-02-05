@@ -29,6 +29,7 @@ from app.records.models import Record, Stat
 import settings
 from app.user.models import User
 from app.user.service.token import get_current_user, decode_token, get_optional_user_from_token
+from app.maps.services import get_filtered_maps_service
 
 router = APIRouter(
     prefix="/api/v1/maps",
@@ -78,7 +79,7 @@ async def get_maps(
     params: MapFilterSchema = Depends(),
     user: Optional[User] = Depends(get_optional_user_from_token),
 ):
-    return await service.get_filtered_maps_service(params, user)
+    return await get_filtered_maps_service(params, user)
 
 @router.post("/", response_model=MapDetailSchema)
 async def create_map(
