@@ -81,11 +81,32 @@ class User(Model):
             return True
 
 class Friendship(Model):
-
     id = fields.IntField(pk=True)
-    user: User = fields.ForeignKeyField("models.User", related_name="friends")
-    friend: User = fields.ForeignKeyField("models.User", related_name="followers")
+    user = fields.ForeignKeyField("models.User", related_name="friends")
+    friend = fields.ForeignKeyField("models.User", related_name="followers")
     created_at = fields.DatetimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ("user", "friend")
+        indexes = (("user",),)
+
+
+class FriendRequestStatus(str, Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+
+class FriendRequest(Model):
+    id = fields.IntField(pk=True)
+    from_user = fields.ForeignKeyField("models.User", related_name="sent_requests")
+    to_user = fields.ForeignKeyField("models.User", related_name="received_requests")
+
+    status = fields.CharEnumField(FriendRequestStatus, default=FriendRequestStatus.PENDING)
+
+    created_at = fields.DatetimeField(auto_now_add=True)
+    updated_at = fields.DatetimeField(auto_now=True)
+
+    class Meta:
+        table = "friend_requests"
+        unique_together = ("from_user", "to_user")
+        indexes = (("to_user", "status"),)
