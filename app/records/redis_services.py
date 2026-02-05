@@ -1,6 +1,7 @@
 ﻿import asyncio
 import datetime
 import time
+from typing import Union
 
 import redis.asyncio as redis
 from settings import REDIS_URL
@@ -49,7 +50,7 @@ class RankingService:
             for uid in user_ids:
                 pipe.zrevrank(self.key, str(uid))
             raw_ranks = await pipe.execute()
-            
+
         return {
             uid: (rank + 1 if rank is not None else None)
             for uid, rank in zip(user_ids, raw_ranks)
@@ -103,8 +104,8 @@ class CCUService:
         self.ttl = 30 
         self._cleanup_task = None
 
-    async def ping(self, user_id: int):
-        await self.redis.zadd(self.key, {str(user_id): time.time()})
+    async def ping(self, identifier: Union[int, str]):
+        await self.redis.zadd(self.key, {str(identifier): time.time()})
 
     async def get_ccu(self) -> int:
         cutoff = time.time() - self.ttl
@@ -125,7 +126,7 @@ class CCUService:
             for uid in user_ids:
                 pipe.zscore(self.key, str(uid))
             scores = await pipe.execute()
-        
+
         now = time.time()
         return {
             uid for uid, score in zip(user_ids, scores) 

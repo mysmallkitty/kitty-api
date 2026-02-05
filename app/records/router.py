@@ -1,7 +1,10 @@
 import asyncio
 import datetime
+from typing import Optional
+import uuid
 from fastapi import APIRouter, Depends, Request
 from sse_starlette import EventSourceResponse
+from app.maps.router import get_optional_user
 from app.play.router import get_current_user
 from app.records.schemas import UserLeaderboardSchema
 from app.user.models import User
@@ -56,14 +59,21 @@ async def get_ccu():
 
 # 유저 접속
 @router.get("/presence/stream")
-async def presence_stream(request: Request, current_user: User = Depends(get_current_user)):
+async def presence_stream(
+    request: Request, 
+    current_user: Optional[User] = Depends(get_optional_user) 
+):
+    if current_user:
+        presence_id = f"user:{current_user.id}"
+    else:
+        presence_id = f"guest:{uuid.uuid4()}"
+
     async def event_generator():
         try:
             while True:
                 if await request.is_disconnected():
                     break
-                
-                await ccu_service.ping(current_user.id)
+                await ccu_service.ping(presence_id)
                 yield {"event": "ping", "data": "staying_alive"}
                 await asyncio.sleep(15)
 
@@ -71,6 +81,10 @@ async def presence_stream(request: Request, current_user: User = Depends(get_cur
             pass
 
         finally:
-            await User.filter(id=current_user.id).update(last_login_at=datetime.now())
+            if current_user:
+                await User.filter(id=current_user.id).update(last_login_at=datetime.now())
+                print(f"User {current_user.id} logged out. DB updated.")
+            else:
+                print(f"Guest {presence_id} disconnected.")
 
     return EventSourceResponse(event_generator())
