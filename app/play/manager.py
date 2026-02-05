@@ -177,6 +177,9 @@ async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
     
     rank_before = await ranking_service.get_rank(session.user_id)
 
+    old_record = await Record.get_or_none(user_id=session.user_id, map_id=session.map_id)
+    old_best_time = old_record.clear_time if old_record else None
+
     clear_time = int(data.get("clear_time", 0))
     record_deaths = int(data.get("deaths", 0))
     session.clear_time = clear_time
@@ -187,12 +190,11 @@ async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
 
     async with in_transaction():
         stat, created = await Stat.get_or_create(user_id=session.user_id, map_id=session.map_id)
-        
         if not stat.is_cleared:
             stat.is_cleared = True
             await clear_service.increment_global_clears(session.user_id, session.map_id)
-        
         await stat.save()
+
         await pp_service.update_record_and_ranking(
             user_id=session.user_id,
             map_id=session.map_id,
@@ -203,18 +205,16 @@ async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
 
     rank_after = await ranking_service.get_rank(session.user_id)
 
-    rank_diff = 0
-    if rank_before is not None and rank_after is not None:
-        rank_diff = rank_before - rank_after
-    elif rank_before is None and rank_after is not None:
-        rank_diff = 0
+    rank_diff = (rank_before - rank_after) if (rank_before is not None and rank_after is not None) else 0
+    time_diff = (old_best_time - clear_time) if old_best_time is not None else None
 
     await websocket.send_json(
-            ClearAck(
-                clear_time=clear_time,
-                deaths=record_deaths,
-                pp=current_pp,
-                rank=rank_after or 0,
-                rank_diff=rank_diff
-            ).model_dump()
-        )
+        ClearAck(
+            clear_time=clear_time,
+            deaths=record_deaths,
+            pp=current_pp,
+            rank=rank_after or 0,
+            rank_diff=rank_diff,
+            time_diff=time_diff
+        ).model_dump()
+    )
