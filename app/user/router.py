@@ -1,14 +1,16 @@
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import datetime
+from app.records.redis_services import ccu_service, ranking_service
 import httpx
 from tortoise.exceptions import DoesNotExist, IntegrityError
 from app.maps.dependencies import get_valid_map
 from app.records.models import Stat
 import settings
 from app.maps.models import Map
-from tortoise.expressions import F
-from app.user.models import User
+from tortoise.expressions import Q
+from tortoise.transactions import in_transaction
+from app.user.models import FriendRequest, FriendRequestStatus, Friendship, User
 from app.user.schemas.token import TokenRefreshRequest, TokenResponse
 from app.user.schemas.user import UserMe, UserOut, UserRegisterSchema, UserUpdateSchema
 from app.user.service.auth import (
@@ -22,6 +24,7 @@ from app.user.service.token import (
     decode_token,
     get_current_user,
 )
+from utils import TimeUtil
 
 router = APIRouter(
     prefix="/api/v1/user",
@@ -103,3 +106,110 @@ async def get_user_profile(user_id: int):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return await UserOut.from_user(user)
+
+# 친구 요청
+@router.post("/friends/request/{target_id}")
+async def send_friend_request(target_id: int, current_user: User = Depends(get_current_user)):
+    if target_id == current_user.id:
+        raise HTTPException(status_code=400, detail="can't friend yourself.")
+
+    if await Friendship.filter(user=current_user, friend_id=target_id).exists():
+        raise HTTPException(status_code=400, detail="already friends.")
+
+    existing_request = await FriendRequest.filter(
+        from_user=current_user, 
+        to_user_id=target_id,
+        status=FriendRequestStatus.PENDING
+    ).exists()
+    
+    if existing_request:
+        raise HTTPException(status_code=400, detail="already sent a friend request.")
+
+    await FriendRequest.create(from_user=current_user, to_user_id=target_id)
+    return {"send friend request successfully."}
+
+# 친구 수락
+@router.post("/friends/accept/{request_id}")
+async def accept_friend_request(request_id: int, current_user: User = Depends(get_current_user)):
+    request = await FriendRequest.get_or_none(id=request_id, to_user=current_user)
+    
+    if not request or request.status != FriendRequestStatus.PENDING:
+        raise HTTPException(status_code=404, detail="not valid request.")
+
+    async with in_transaction():
+        request.status = FriendRequestStatus.ACCEPTED
+        await request.save()
+
+        await Friendship.get_or_create(user_id=request.from_user_id, friend_id=request.to_user_id)
+        await Friendship.get_or_create(user_id=request.to_user_id, friend_id=request.from_user_id)
+
+    return {"accept friend request successfully."}
+
+# 친구 거절
+@router.post("/friends/reject/{request_id}")
+async def reject_friend_request(
+    request_id: int, 
+    current_user: User = Depends(get_current_user)
+):
+    request = await FriendRequest.get_or_none(id=request_id, to_user=current_user)
+    
+    if not request:
+        raise HTTPException(
+            status_code=404, 
+            detail={"code": "NOT_FOUND", "message": "Friend request not found."}
+        )
+
+    if request.status != FriendRequestStatus.PENDING:
+        raise HTTPException(
+            status_code=400, 
+            detail={
+                "code": "ALREADY_PROCESSED", 
+                "message": f"This request is already {request.status}."
+            }
+        )
+
+    request.status = FriendRequestStatus.REJECTED
+    await request.save()
+
+    return "Friend request has been rejected."
+
+# 친구 삭제
+@router.delete("/friends/{friend_id}")
+async def unfriend(friend_id: int, current_user: User = Depends(get_current_user)):
+    deleted_count = await Friendship.filter(
+        (Q(user=current_user, friend_id=friend_id) | Q(user_id=friend_id, friend=current_user))
+    ).delete()
+
+    if deleted_count == 0:
+        raise HTTPException(
+            status_code=404, 
+            detail="You are not friends with this user."
+        )
+
+    return {"Unfriended successfully."}
+
+# 친구 목록
+@router.get("/friends")
+async def get_my_friend_list(current_user: User = Depends(get_current_user)):
+    friendships = await Friendship.filter(user=current_user).prefetch_related("friend")
+    if not friendships:
+        return []
+
+    friend_ids = [f.friend.id for f in friendships]
+    online_set = await ccu_service.get_online_ids(friend_ids)
+    rank_map = await ranking_service.get_ranks_batch(friend_ids)
+
+    results = []
+
+    for f in friendships:
+        friend = f.friend
+        
+        results.append({
+            "id": friend.id,
+            "username": friend.username,
+            "is_online": friend.id in online_set,
+            "rank": rank_map.get(friend.id, "Unranked"),
+            "last_active_display": TimeUtil.format_last_active(friend.last_login_at)
+        })
+
+    return results
