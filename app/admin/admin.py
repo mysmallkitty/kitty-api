@@ -1,14 +1,17 @@
 from fastadmin import TortoiseModelAdmin, register, action, display
+from markupsafe import Markup
 from app.admin.inline import MapInline, RecordInline, StatInline, UserRecordInline, UserStatInline
 from app.admin.mixins import RolePermissionMixin
 from app.maps.models import Map
 from app.records.models import Record, Stat
 from app.user.models import Roles, User
+from utils import generate_svg_sprite
 
 @register(User)
 class UserAdmin(RolePermissionMixin,TortoiseModelAdmin):
     list_display = (
         "id", 
+        "display_sprite",
         "username", 
         "role",
         "email",
@@ -16,13 +19,14 @@ class UserAdmin(RolePermissionMixin,TortoiseModelAdmin):
         "level",
         "country",
         "is_banned",
+        "created_at",
         )
     list_display_links = (
         "username",
         )
     fieldsets = (
             (None, {
-                "fields": ["username", "email", "role", "profile_sprite", "country"] 
+                "fields": ["username", "email", "role", "display_sprite", "profile_sprite", "player_sprite", "country"] 
             }),
             ("stat", {
                 "fields": [ 
@@ -40,6 +44,7 @@ class UserAdmin(RolePermissionMixin,TortoiseModelAdmin):
         "id",
         "username",
         "created_at",
+        "display_sprite",
         )
     list_filter = ("role",)                   
     search_fields = ("username",)           
@@ -50,12 +55,21 @@ class UserAdmin(RolePermissionMixin,TortoiseModelAdmin):
         UserStatInline,
         )
     
+    list_per_page = 20
+    actions_on_top = True
+    
 
     async def authenticate(self, username: str, password: str) -> int | None:
         user = await User.filter(username=username, role__in=[Roles.ADMIN, Roles.MOD, Roles.RM]).first()
         if not user or not user.verify_password(password):
             return None
         return user.id
+    
+    @display
+    def display_sprite(self, obj):
+        if not obj.id or not obj.profile_sprite:
+            return ""
+        return f"/api/v1/user/{obj.id}/sprite.svg"
     
     actions = ("make_mod", "make_rm", "make_lv", "make_user", "ban_users", "unban_users")
 
@@ -114,7 +128,7 @@ class UserAdmin(RolePermissionMixin,TortoiseModelAdmin):
     
     async def has_export_permission(self, user_id=None):
         return await self._has_role(user_id)
-    
+
 
 
 @register(Map)
@@ -122,7 +136,7 @@ class MapAdmin(RolePermissionMixin, TortoiseModelAdmin):
     list_display = (
         "id", 
         "title", 
-        "creator", 
+        "creator_name", 
         "rating", 
         "is_ranked", 
         "total_clears", 
@@ -154,7 +168,15 @@ class MapAdmin(RolePermissionMixin, TortoiseModelAdmin):
         }),
     )
 
+    list_per_page = 20
+    actions_on_top = True
+
     readonly_fields = ("id", "created_at", "updated_at", "hash")
+    
+    @display
+    async def creator_name(self, obj):
+        user = await obj.creator.first()
+        return user.username if user else None
 
     actions = ("set_ranked", "unset_ranked")
 
@@ -188,9 +210,13 @@ class MapAdmin(RolePermissionMixin, TortoiseModelAdmin):
 
 @register(Record)
 class RecordAdmin(RolePermissionMixin, TortoiseModelAdmin):
-    list_display = ("id", "map_title", "username", "pp", "get_country", "created_at")
+    list_display = ("id","map_id", "map_title", "username", "pp", "get_country", "created_at")
+    list_select_related = ("user", "map")
     list_display_links = ("id",)
-    
+
+    list_per_page = 20
+    actions_on_top = True
+
     ordering = ("-pp",)
 
     @display
@@ -202,6 +228,11 @@ class RecordAdmin(RolePermissionMixin, TortoiseModelAdmin):
     async def username(self, obj):
         user = await obj.user.first()
         return user.username if user else None
+    
+    @display
+    async def map_id(self, obj):
+        m = await obj.map.first()
+        return m.id if m else None
     
     @display
     async def map_title(self, obj):
@@ -227,7 +258,11 @@ class RecordAdmin(RolePermissionMixin, TortoiseModelAdmin):
 @register(Stat)
 class StatAdmin(RolePermissionMixin, TortoiseModelAdmin):
     list_display = ("id", "map_title", "username", "is_loved", "is_cleared")
+    list_select_related = ("user", "map")
     list_filter = ("is_cleared", "is_loved")
+
+    list_per_page = 20
+    actions_on_top = True
 
     @display
     async def username(self, obj):
