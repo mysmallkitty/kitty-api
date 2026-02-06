@@ -1,7 +1,12 @@
+import asyncio
 from typing import Optional
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+import uuid
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import datetime
+
+from sse_starlette import EventSourceResponse
+from app.maps.router import get_optional_user
 from app.records.redis_services import ccu_service, ranking_service
 import httpx
 from tortoise.exceptions import DoesNotExist, IntegrityError
@@ -28,7 +33,7 @@ from app.user.service.token import (
     get_current_user,
     get_optional_user_from_token,
 )
-from utils import TimeUtil
+from utils import TimeUtil, generate_svg_sprite
 
 router = APIRouter(
     prefix="/api/v1/user",
@@ -213,17 +218,21 @@ async def send_friend_request(target_id: int, current_user: User = Depends(get_c
     if await Friendship.filter(user=current_user, friend_id=target_id).exists():
         raise HTTPException(status_code=400, detail="already friends.")
 
-    existing_request = await FriendRequest.filter(
-        from_user=current_user, 
-        to_user_id=target_id,
-        status=FriendRequestStatus.PENDING
-    ).exists()
-    
+    existing_request = await FriendRequest.get_or_none(
+        from_user=current_user,
+        to_user_id=target_id
+    )
+
     if existing_request:
-        raise HTTPException(status_code=400, detail="already sent a friend request.")
+        if existing_request.status == FriendRequestStatus.PENDING:
+            raise HTTPException(status_code=400, detail="already sent a friend request.")
+        else:
+            existing_request.status = FriendRequestStatus.PENDING
+            await existing_request.save()
+            return {"detail": "Friend request re-sent successfully."}
 
     await FriendRequest.create(from_user=current_user, to_user_id=target_id)
-    return {"send friend request successfully."}
+    return {"detail": "Friend request sent successfully."}
 
 # 친구 수락
 @router.post("/friends/accept/{request_id}")
@@ -270,6 +279,28 @@ async def reject_friend_request(
 
     return "Friend request has been rejected."
 
+# 친구 요청 목록
+@router.get("/friends/requests")
+async def get_friend_requests(current_user: User = Depends(get_current_user)):
+    requests = await FriendRequest.filter(
+        to_user=current_user,
+        status=FriendRequestStatus.PENDING
+    ).prefetch_related("from_user").order_by("-created_at")
+
+    results = []
+    for req in requests:
+        results.append({
+            "request_id": req.id,
+            "from_user_id": req.from_user.id,
+            "username": req.from_user.username,
+            "profile_sprite": req.from_user.profile_sprite,
+            "level": req.from_user.level,
+            "country": req.from_user.country,
+            "created_at": req.created_at.isoformat()
+        })
+
+    return results
+
 # 친구 삭제
 @router.delete("/friends/{friend_id}")
 async def unfriend(friend_id: int, current_user: User = Depends(get_current_user)):
@@ -304,9 +335,19 @@ async def get_my_friend_list(current_user: User = Depends(get_current_user)):
         results.append({
             "id": friend.id,
             "username": friend.username,
+            "profile_sprite": friend.profile_sprite,
             "is_online": friend.id in online_set,
             "rank": rank_map.get(friend.id, "Unranked"),
             "last_active_display": TimeUtil.format_last_active(friend.last_login_at)
         })
 
-    return results
+    return results 
+
+# user 프로필 이미지
+@router.get("/{user_id}/sprite.svg")
+async def get_user_sprite(user_id: int):
+    user = await User.get_or_none(id=user_id)
+    if not user or not user.profile_sprite:
+        return Response(status_code=404)
+    svg_code = generate_svg_sprite(user.profile_sprite)
+    return Response(content=svg_code, media_type="image/svg+xml")
