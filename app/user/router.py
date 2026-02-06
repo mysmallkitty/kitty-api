@@ -210,6 +210,7 @@ async def get_user_records(user_id: int, limit: int = 100):
     return {"items": items}
 
 # 친구 요청
+# 친구 요청
 @router.post("/friends/request/{target_id}")
 async def send_friend_request(target_id: int, current_user: User = Depends(get_current_user)):
     if target_id == current_user.id:
@@ -218,18 +219,21 @@ async def send_friend_request(target_id: int, current_user: User = Depends(get_c
     if await Friendship.filter(user=current_user, friend_id=target_id).exists():
         raise HTTPException(status_code=400, detail="already friends.")
 
-    existing_request = await FriendRequest.filter(
-        from_user=current_user, 
-        to_user_id=target_id,
-        status=FriendRequestStatus.PENDING
-    ).exists()
-    
+    existing_request = await FriendRequest.get_or_none(
+        from_user=current_user,
+        to_user_id=target_id
+    )
+
     if existing_request:
-        raise HTTPException(status_code=400, detail="already sent a friend request.")
+        if existing_request.status == FriendRequestStatus.PENDING:
+            raise HTTPException(status_code=400, detail="already sent a friend request.")
+        else:
+            existing_request.status = FriendRequestStatus.PENDING
+            await existing_request.save()
+            return {"detail": "Friend request re-sent successfully."}
 
     await FriendRequest.create(from_user=current_user, to_user_id=target_id)
-    return {"send friend request successfully."}
-
+    return {"detail": "Friend request sent successfully."}
 # 친구 수락
 @router.post("/friends/accept/{request_id}")
 async def accept_friend_request(request_id: int, current_user: User = Depends(get_current_user)):
