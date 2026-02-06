@@ -29,7 +29,17 @@ class UserRecordMapSchema(BaseModel):
     model_config = {"from_attributes": True}
     id: int
     title: str
-    creator: str = Field(validation_alias=AliasPath("creator", "username"))
+    creator: str = ""
+
+    @field_validator("creator", mode="before")
+    @classmethod
+    def _creator_default(cls, value: object) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, dict):
+            username = value.get("username")
+            return "" if username is None else str(username)
+        return str(value)
 
 
 class UserRecordSchema(BaseModel):
