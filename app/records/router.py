@@ -88,3 +88,11 @@ async def presence_stream(
                 print(f"Guest {presence_id} disconnected.")
 
     return EventSourceResponse(event_generator())
+
+
+@router.post("/presence/ping")
+async def presence_ping(current_user: Optional[User] = Depends(get_optional_user)):
+    if current_user:
+        await ccu_service.ping(f"user:{current_user.id}")
+        return {"ok": True}
+    return {"ok": False}
