@@ -56,35 +56,3 @@ async def get_today_cat_deaths():
 @router.get("/ccu")
 async def get_ccu():
     return await ccu_service.get_ccu()
-
-# 유저 접속
-@router.get("/presence/stream")
-async def presence_stream(
-    request: Request, 
-    current_user: Optional[User] = Depends(get_optional_user) 
-):
-    if current_user:
-        presence_id = f"user:{current_user.id}"
-    else:
-        presence_id = f"guest:{uuid.uuid4()}"
-
-    async def event_generator():
-        try:
-            while True:
-                if await request.is_disconnected():
-                    break
-                await ccu_service.ping(presence_id)
-                yield {"event": "ping", "data": "staying_alive"}
-                await asyncio.sleep(15)
-
-        except asyncio.CancelledError:
-            pass
-
-        finally:
-            if current_user:
-                await User.filter(id=current_user.id).update(last_login_at=datetime.now())
-                print(f"User {current_user.id} logged out. DB updated.")
-            else:
-                print(f"Guest {presence_id} disconnected.")
-
-    return EventSourceResponse(event_generator())

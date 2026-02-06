@@ -1,7 +1,12 @@
+import asyncio
 from typing import Optional
+import uuid
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import datetime
+
+from sse_starlette import EventSourceResponse
+from app.maps.router import get_optional_user
 from app.records.redis_services import ccu_service, ranking_service
 import httpx
 from tortoise.exceptions import DoesNotExist, IntegrityError
@@ -270,6 +275,27 @@ async def reject_friend_request(
 
     return "Friend request has been rejected."
 
+@router.get("/friends/requests")
+async def get_friend_requests(current_user: User = Depends(get_current_user)):
+    requests = await FriendRequest.filter(
+        to_user=current_user,
+        status=FriendRequestStatus.PENDING
+    ).prefetch_related("from_user").order_by("-created_at")
+
+    results = []
+    for req in requests:
+        results.append({
+            "request_id": req.id,
+            "from_user_id": req.from_user.id,
+            "username": req.from_user.username,
+            "profile_sprite": req.from_user.profile_sprite,
+            "level": req.from_user.level,
+            "country": req.from_user.country,
+            "created_at": req.created_at.isoformat()
+        })
+
+    return results
+
 # 친구 삭제
 @router.delete("/friends/{friend_id}")
 async def unfriend(friend_id: int, current_user: User = Depends(get_current_user)):
@@ -304,6 +330,7 @@ async def get_my_friend_list(current_user: User = Depends(get_current_user)):
         results.append({
             "id": friend.id,
             "username": friend.username,
+            "profile_sprite": friend.profile_sprite,
             "is_online": friend.id in online_set,
             "rank": rank_map.get(friend.id, "Unranked"),
             "last_active_display": TimeUtil.format_last_active(friend.last_login_at)
@@ -318,3 +345,36 @@ async def get_user_sprite(user_id: int):
         return Response(status_code=404)
     svg_code = generate_svg_sprite(user.profile_sprite)
     return Response(content=svg_code, media_type="image/svg+xml")
+
+
+# 유저 접속
+@router.get("/presence/stream")
+async def presence_stream(
+    request: Request, 
+    current_user: Optional[User] = Depends(get_optional_user) 
+):
+    if current_user:
+        presence_id = f"user:{current_user.id}"
+    else:
+        presence_id = f"guest:{uuid.uuid4()}"
+
+    async def event_generator():
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                await ccu_service.ping(presence_id)
+                yield {"event": "ping", "data": "staying_alive"}
+                await asyncio.sleep(15)
+
+        except asyncio.CancelledError:
+            pass
+
+        finally:
+            if current_user:
+                await User.filter(id=current_user.id).update(last_login_at=datetime.now())
+                print(f"User {current_user.id} logged out. DB updated.")
+            else:
+                print(f"Guest {presence_id} disconnected.")
+
+    return EventSourceResponse(event_generator())
