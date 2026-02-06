@@ -46,3 +46,28 @@ class UserUpdateSchema(BaseModel):
     email: Optional[str] = Field(None, max_length=100)
     profile_sprite: Optional[str] = Field(None, max_length=256)
     player_sprite: Optional[str] = Field(None, max_length=81)
+
+class UserFilterSchema(BaseModel):
+    username: Optional[str] = None
+
+    sort: str = "username" # username | rank | country
+
+    friend_only: bool = False
+    my_country_only: bool = False
+
+    offset: int = 0
+    size: int = Field(20, gt=0, le=100)
+
+class UserListSchema(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    profile_sprite: Optional[str] = None
+    username: str
+    rank: int
+    country: Optional[str] = None
+    level: int
+
+class UserListResponse(BaseModel):
+    total: int
+    items: list[UserListSchema]

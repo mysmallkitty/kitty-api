@@ -29,6 +29,7 @@ from app.records.models import Record, Stat
 import settings
 from app.user.models import User
 from app.user.service.token import get_current_user, decode_token, get_optional_user_from_token
+from app.maps.services import get_filtered_maps_service
 
 router = APIRouter(
     prefix="/api/v1/maps",
@@ -78,7 +79,7 @@ async def get_maps(
     params: MapFilterSchema = Depends(),
     user: Optional[User] = Depends(get_optional_user_from_token),
 ):
-    return await service.get_filtered_maps_service(params, user)
+    return await get_filtered_maps_service(params, user)
 
 @router.post("/", response_model=MapDetailSchema)
 async def create_map(
@@ -284,26 +285,3 @@ async def get_map_leaderboard(map_obj: Map = Depends(get_valid_map_with_creator)
     )
 
     return MapLeaderboardSchema.from_map_records(map_obj, records)
-
-
-# @router.get("/{map_id}/leaderboard/pp")
-# async def leaderboard_pp(map_obj: Map = Depends(get_valid_map_with_creator)):
-#     stats = (
-#         await Stat.filter(map_id=map_obj.id, best_pp_record__not_isnull=True)
-#         .prefetch_related("best_pp_record__user")
-#         .order_by("-best_pp_record__pp", "best_pp_record__clear_time")
-#         .limit(20)
-#     )
-
-#     return stats
-
-# @router.get("/{map_id}/leaderboard/time")
-# async def leaderboard_time(map_obj: Map = Depends(get_valid_map_with_creator)):
-#     stats = (
-#         await Stat.filter(map_id=map_obj.id, best_time_record__not_isnull=True)
-#         .prefetch_related("best_time_record__user")
-#         .order_by("best_time_record__clear_time")
-#         .limit(20)
-#     )
-
-#     return stats

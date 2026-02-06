@@ -21,7 +21,7 @@ from app.play.schemas import (
 from app.records.models import Record, Stat
 from app.records.pp.calculate_pp import calculate_pp
 from app.records.services import pp_service, clear_service
-from app.records.redis_services import ranking_service, ccu_service
+from app.records.redis_services import ranking_service
 from app.maps.models import Map
 from app.user.models import User
 
@@ -75,7 +75,6 @@ class GameWebSocketManager:
         session = self.get_session(session_id)
         if not session:
             return
-        await ccu_service.disconnect(session.user_id)
         
         await self.broadcast(session_id, {"type": "peer_left", "user_id": session.user_id})
         map_id = session.map_id
@@ -175,6 +174,11 @@ async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
     session = manager.get_session(session_id)
     if not session or session.is_cleared:
         return
+    
+    rank_before = await ranking_service.get_rank(session.user_id)
+
+    old_record = await Record.get_or_none(user_id=session.user_id, map_id=session.map_id)
+    old_best_time = old_record.clear_time if old_record else None
 
     clear_time = int(data.get("clear_time", 0))
     record_deaths = int(data.get("deaths", 0))
@@ -186,14 +190,11 @@ async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
 
     async with in_transaction():
         stat, created = await Stat.get_or_create(user_id=session.user_id, map_id=session.map_id)
-        
-        stat.deaths += int(session.deaths or 0)
-
         if not stat.is_cleared:
             stat.is_cleared = True
             await clear_service.increment_global_clears(session.user_id, session.map_id)
-        
         await stat.save()
+
         await pp_service.update_record_and_ranking(
             user_id=session.user_id,
             map_id=session.map_id,
@@ -202,19 +203,18 @@ async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
             current_pp=current_pp
         )
 
-    rank = await ranking_service.get_rank(session.user_id)
+    rank_after = await ranking_service.get_rank(session.user_id)
+
+    rank_diff = (rank_before - rank_after) if (rank_before is not None and rank_after is not None) else 0
+    time_diff = (old_best_time - clear_time) if old_best_time is not None else None
+
     await websocket.send_json(
         ClearAck(
             clear_time=clear_time,
             deaths=record_deaths,
             pp=current_pp,
-            rank=rank or 0
+            rank=rank_after or 0,
+            rank_diff=rank_diff,
+            time_diff=time_diff
         ).model_dump()
     )
-
-@manager.handler("ping")
-async def handle_ping(websocket: WebSocket, session_id: str, data: dict):
-    session = manager.get_session(session_id)
-    if session:
-        await ccu_service.heartbeat(session.user_id)
-        await websocket.send_json({"type": "pong"})

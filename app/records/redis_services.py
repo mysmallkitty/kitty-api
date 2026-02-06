@@ -1,4 +1,7 @@
-﻿import time
+﻿import asyncio
+import datetime
+import time
+from typing import Union
 
 import redis.asyncio as redis
 from settings import REDIS_URL
@@ -38,6 +41,20 @@ class RankingService:
     async def get_leaderboard_page(self, offset: int, limit: int):
         end = max(offset + limit - 1, 0)
         return await self.redis.zrevrange(self.key, offset, end, withscores=True)
+    
+    async def get_ranks_batch(self, user_ids: list[int]) -> dict[int, int | None]:
+        if not user_ids:
+            return {}
+
+        async with self.redis.pipeline(transaction=False) as pipe:
+            for uid in user_ids:
+                pipe.zrevrank(self.key, str(uid))
+            raw_ranks = await pipe.execute()
+
+        return {
+            uid: (rank + 1 if rank is not None else None)
+            for uid, rank in zip(user_ids, raw_ranks)
+        }
 
 
 ranking_service = RankingService()
@@ -81,25 +98,43 @@ class GlobalStatsService:
 global_stats_service = GlobalStatsService()
 
 class CCUService:
-    def __init__(self):
-        self.redis = redis.Redis.from_url(REDIS_URL, decode_responses=True)
-        self.global_ccu_key = "global:ccu"
-        self.timeout = 30
+    def __init__(self, redis_url: str):
+        self.redis = redis.from_url(redis_url, decode_responses=True)
+        self.key = "global:online_users"
+        self.ttl = 30 
+        self._cleanup_task = None
 
-    # 접속 시간 갱신
-    async def heartbeat(self, user_id: int):
+    async def ping(self, identifier: Union[int, str]):
+        await self.redis.zadd(self.key, {str(identifier): time.time()})
+
+    async def get_ccu(self) -> int:
+        cutoff = time.time() - self.ttl
+        return await self.redis.zcount(self.key, cutoff, "+inf")
+
+    async def get_online_ids(self, user_ids: list[int]) -> set[int]:
+        if not user_ids:
+            return set()
+
+        async with self.redis.pipeline(transaction=False) as pipe:
+            for uid in user_ids:
+                pipe.zscore(self.key, f"user:{uid}")
+            scores = await pipe.execute()
+
         now = time.time()
-        await self.redis.zadd(self.global_ccu_key, {str(user_id): now})
+        return {
+            uid for uid, score in zip(user_ids, scores) 
+            if score and score > (now - self.ttl)
+        }
+    
+    async def _cleanup_loop(self):
+        while True:
+            cutoff = time.time() - self.ttl
+            await self.redis.zremrangebyscore(self.key, "-inf", cutoff)
+            await asyncio.sleep(10)
 
-    # 유저반환
-    async def get_ccu(self):
-        cutoff = time.time() - self.timeout
-        await self.redis.zremrangebyscore(self.global_ccu_key, "-inf", cutoff)
-        count = await self.redis.zcard(self.global_ccu_key)
-        return {"global_ccu": count}
+    def start_cleanup(self):
+        if self._cleanup_task is None:
+            self._cleanup_task = asyncio.create_task(self._cleanup_loop())
 
-    # 종료시 제거
-    async def disconnect(self, user_id: int):
-        await self.redis.zrem(self.global_ccu_key, str(user_id))
 
-ccu_service = CCUService()
+ccu_service = CCUService(REDIS_URL)

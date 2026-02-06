@@ -10,7 +10,7 @@ from app.records.router import router as records_router
 from app.user.router import router as user_router
 from app.play.router import router as play_router
 from app.admin.app import admin_app
-from app.records.redis_services import ranking_service
+from app.records.redis_services import ranking_service, ccu_service
 from app.admin import admin
 
 FIX_RANK_FLAG = "--fix_rank"
@@ -34,6 +34,7 @@ async def lifespan(app: FastAPI):
     await Tortoise.init(config=settings.TORTOISE_ORM)
     if FIX_RANK_ON_STARTUP:
         await ranking_service.rebuild_leaderboard(recompute_pp=True)
+    ccu_service.start_cleanup()
     yield
     await Tortoise.close_connections()
 
