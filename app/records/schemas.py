@@ -23,3 +23,23 @@ class UserLeaderboardSchema(BaseModel):
         if value is None:
             return ""
         return str(value)
+
+
+class UserRecordMapSchema(BaseModel):
+    model_config = {"from_attributes": True}
+    id: int
+    title: str
+    creator: str = Field(validation_alias=AliasPath("creator", "username"))
+
+
+class UserRecordSchema(BaseModel):
+    model_config = {"from_attributes": True}
+    map: UserRecordMapSchema
+    pp: float = Field(ge=0.0)
+    clear_time: int | None = None
+    deaths: int = Field(ge=0)
+    created_at: datetime
+
+
+class UserRecordListResponse(BaseModel):
+    items: list[UserRecordSchema]

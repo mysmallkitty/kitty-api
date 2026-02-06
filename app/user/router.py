@@ -6,7 +6,8 @@ from app.records.redis_services import ccu_service, ranking_service
 import httpx
 from tortoise.exceptions import DoesNotExist, IntegrityError
 from app.maps.dependencies import get_valid_map
-from app.records.models import Stat
+from app.records.models import Record, Stat
+from app.records.schemas import UserRecordListResponse
 from app.user.service.user import get_filtered_users_service
 import settings
 from app.maps.models import Map
@@ -167,6 +168,41 @@ async def get_user_profile(user_id: int):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return await UserOut.from_user(user)
+
+
+@router.get("/{user_id}/records", response_model=UserRecordListResponse)
+async def get_user_records(user_id: int, limit: int = 100):
+    limit = max(1, min(int(limit), 100))
+    records = (
+        await Record.filter(
+            user_id=user_id,
+            map__is_ranked=True,
+            pp__not_isnull=True,
+        )
+        .select_related("map", "map__creator")
+        .order_by("-pp")
+        .limit(limit)
+    )
+    items = []
+    for record in records:
+        map_obj = record.map
+        if map_obj is None:
+            continue
+        creator = map_obj.creator.username if getattr(map_obj, "creator", None) else ""
+        items.append(
+            {
+                "map": {
+                    "id": map_obj.id,
+                    "title": map_obj.title,
+                    "creator": creator,
+                },
+                "pp": float(record.pp or 0.0),
+                "clear_time": record.clear_time,
+                "deaths": record.deaths,
+                "created_at": record.created_at,
+            }
+        )
+    return {"items": items}
 
 # 친구 요청
 @router.post("/friends/request/{target_id}")
