@@ -210,7 +210,6 @@ async def get_user_records(user_id: int, limit: int = 100):
     return {"items": items}
 
 # 친구 요청
-# 친구 요청
 @router.post("/friends/request/{target_id}")
 async def send_friend_request(target_id: int, current_user: User = Depends(get_current_user)):
     if target_id == current_user.id:
@@ -234,6 +233,7 @@ async def send_friend_request(target_id: int, current_user: User = Depends(get_c
 
     await FriendRequest.create(from_user=current_user, to_user_id=target_id)
     return {"detail": "Friend request sent successfully."}
+
 # 친구 수락
 @router.post("/friends/accept/{request_id}")
 async def accept_friend_request(request_id: int, current_user: User = Depends(get_current_user)):
