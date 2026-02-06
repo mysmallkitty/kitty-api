@@ -102,21 +102,71 @@ async def update_user_profile(
     return await UserOut.from_user(updated_user)
 
 
-# 유저 프로필 조회
+# 사용자 검색
+@router.get("", response_model=UserListResponse, include_in_schema=False)
+async def get_users_no_slash(
+    params: UserFilterSchema = Depends(),
+    user: Optional[User] = Depends(get_optional_user_from_token),
+):
+    return await get_filtered_users_service(params, user)
+
+
+@router.get("/", response_model=UserListResponse)
+async def get_users(
+    params: UserFilterSchema = Depends(),
+    user: Optional[User] = Depends(get_optional_user_from_token),
+):
+    return await get_filtered_users_service(params, user)
+
+
+@router.get("/online", response_model=UserListResponse)
+async def get_online_users(limit: int = 20, offset: int = 0):
+    online_ids = await ccu_service.get_online_user_ids()
+    total = len(online_ids)
+    if not online_ids or offset >= total:
+        return {"total": total, "items": []}
+
+    page_ids = online_ids[offset : offset + limit]
+    users = await User.filter(id__in=page_ids).only(
+        "id",
+        "profile_sprite",
+        "username",
+        "country",
+        "level",
+        "total_pp",
+    )
+    if not users:
+        return {"total": total, "items": []}
+
+    rank_map = await ranking_service.get_ranks_batch(page_ids)
+    user_map = {user.id: user for user in users}
+
+    items = []
+    for uid in page_ids:
+        user = user_map.get(uid)
+        if not user:
+            continue
+        items.append(
+            {
+                "id": user.id,
+                "profile_sprite": user.profile_sprite,
+                "username": user.username,
+                "rank": rank_map.get(user.id) or 0,
+                "country": user.country,
+                "level": user.level,
+            }
+        )
+
+    return {"total": total, "items": items}
+
+
+# 사용자 프로필 조회
 @router.get("/{user_id}", response_model=UserOut)
 async def get_user_profile(user_id: int):
     user = await User.get_or_none(id=user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return await UserOut.from_user(user)
-
-# 유저 검색
-@router.get("/", response_model= UserListResponse)
-async def get_users(
-    params : UserFilterSchema = Depends(),
-    user: Optional[User] = Depends(get_optional_user_from_token)
-    ):
-    return await get_filtered_users_service(params, user)
 
 # 친구 요청
 @router.post("/friends/request/{target_id}")

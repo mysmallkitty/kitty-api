@@ -125,6 +125,21 @@ class CCUService:
             uid for uid, score in zip(user_ids, scores) 
             if score and score > (now - self.ttl)
         }
+
+    async def get_online_user_ids(self) -> list[int]:
+        cutoff = time.time() - self.ttl
+        raw_ids = await self.redis.zrevrangebyscore(self.key, "+inf", cutoff)
+        user_ids: list[int] = []
+        for ident in raw_ids:
+            if not isinstance(ident, str):
+                continue
+            if not ident.startswith("user:"):
+                continue
+            try:
+                user_ids.append(int(ident.split(":", 1)[1]))
+            except (ValueError, IndexError):
+                continue
+        return user_ids
     
     async def _cleanup_loop(self):
         while True:
