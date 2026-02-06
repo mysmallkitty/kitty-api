@@ -1,7 +1,7 @@
 
 
 from typing import Optional
-from app.records.redis_services import RankingService
+from app.records.redis_services import ranking_service
 from app.user.models import Friendship, User
 from app.user.schemas.user import UserFilterSchema
 
@@ -52,7 +52,7 @@ async def get_filtered_users_service(params: UserFilterSchema, user: Optional[Us
         return {"total": total, "items": []}
 
     user_ids = [item.id for item in items]
-    rank_map = await RankingService.get_ranks_batch(user_ids)
+    rank_map = await ranking_service.get_ranks_batch(user_ids)
 
     results = []
     for item in items:

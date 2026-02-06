@@ -6,7 +6,8 @@ from app.records.redis_services import ccu_service, ranking_service
 import httpx
 from tortoise.exceptions import DoesNotExist, IntegrityError
 from app.maps.dependencies import get_valid_map
-from app.records.models import Stat
+from app.records.models import Record, Stat
+from app.records.schemas import UserRecordListResponse
 from app.user.service.user import get_filtered_users_service
 import settings
 from app.maps.models import Map
@@ -102,7 +103,65 @@ async def update_user_profile(
     return await UserOut.from_user(updated_user)
 
 
-# 유저 프로필 조회
+# 사용자 검색
+@router.get("", response_model=UserListResponse, include_in_schema=False)
+async def get_users_no_slash(
+    params: UserFilterSchema = Depends(),
+    user: Optional[User] = Depends(get_optional_user_from_token),
+):
+    return await get_filtered_users_service(params, user)
+
+
+@router.get("/", response_model=UserListResponse)
+async def get_users(
+    params: UserFilterSchema = Depends(),
+    user: Optional[User] = Depends(get_optional_user_from_token),
+):
+    return await get_filtered_users_service(params, user)
+
+
+@router.get("/online", response_model=UserListResponse)
+async def get_online_users(limit: int = 20, offset: int = 0):
+    online_ids = await ccu_service.get_online_user_ids()
+    total = len(online_ids)
+    if not online_ids or offset >= total:
+        return {"total": total, "items": []}
+
+    page_ids = online_ids[offset : offset + limit]
+    users = await User.filter(id__in=page_ids).only(
+        "id",
+        "profile_sprite",
+        "username",
+        "country",
+        "level",
+        "total_pp",
+    )
+    if not users:
+        return {"total": total, "items": []}
+
+    rank_map = await ranking_service.get_ranks_batch(page_ids)
+    user_map = {user.id: user for user in users}
+
+    items = []
+    for uid in page_ids:
+        user = user_map.get(uid)
+        if not user:
+            continue
+        items.append(
+            {
+                "id": user.id,
+                "profile_sprite": user.profile_sprite,
+                "username": user.username,
+                "rank": rank_map.get(user.id) or 0,
+                "country": user.country,
+                "level": user.level,
+            }
+        )
+
+    return {"total": total, "items": items}
+
+
+# 사용자 프로필 조회
 @router.get("/{user_id}", response_model=UserOut)
 async def get_user_profile(user_id: int):
     user = await User.get_or_none(id=user_id)
@@ -110,13 +169,40 @@ async def get_user_profile(user_id: int):
         raise HTTPException(status_code=404, detail="User not found")
     return await UserOut.from_user(user)
 
-# 유저 검색
-@router.get("/", response_model= UserListResponse)
-async def get_users(
-    params : UserFilterSchema = Depends(),
-    user: Optional[User] = Depends(get_optional_user_from_token)
-    ):
-    return await get_filtered_users_service(params, user)
+
+@router.get("/{user_id}/records", response_model=UserRecordListResponse)
+async def get_user_records(user_id: int, limit: int = 100):
+    limit = max(1, min(int(limit), 100))
+    records = (
+        await Record.filter(
+            user_id=user_id,
+            map__is_ranked=True,
+            pp__not_isnull=True,
+        )
+        .select_related("map", "map__creator")
+        .order_by("-pp")
+        .limit(limit)
+    )
+    items = []
+    for record in records:
+        map_obj = record.map
+        if map_obj is None:
+            continue
+        creator = map_obj.creator.username if getattr(map_obj, "creator", None) else ""
+        items.append(
+            {
+                "map": {
+                    "id": map_obj.id,
+                    "title": map_obj.title,
+                    "creator": creator,
+                },
+                "pp": float(record.pp or 0.0),
+                "clear_time": record.clear_time,
+                "deaths": record.deaths,
+                "created_at": record.created_at,
+            }
+        )
+    return {"items": items}
 
 # 친구 요청
 @router.post("/friends/request/{target_id}")
