@@ -11,6 +11,7 @@ class RecordPost(BaseModel):
 
 class UserLeaderboardSchema(BaseModel):
     model_config = {"from_attributes": True}
+    id: int = Field(ge=0, default=0)
     rank: int = Field(ge=0, default=0)
     username: str
     profile_sprite: str = ""
