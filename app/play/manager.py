@@ -41,6 +41,7 @@ class GameSession:
         self.clear_time = None
         self.is_cleared = False
         self.place = None
+        self.started = False
 
 
 POSITION_THROTTLE = 0.01
@@ -99,7 +100,10 @@ class GameWebSocketManager:
         group_key = (map_id, room_id)
         
         if room_id:
-            await room_service.leave_room(room_id, user_id)
+            try:
+                await room_service.leave_room(room_id, user_id)
+            except HTTPException:
+                pass
             
             await self.broadcast_to_group(group_key, {
                 "type": "player_left",
@@ -154,6 +158,9 @@ manager = GameWebSocketManager()
 
 @manager.handler("position")
 async def handle_position(websocket: WebSocket, session_id: str, data: dict):
+ 
+    if not session.started:
+        return
     try:
         PositionMessage.model_validate(data)
     except ValidationError:
@@ -346,29 +353,50 @@ async def handle_kick(websocket: WebSocket, session_id: str, data: dict):
 @manager.handler("start_game")
 async def handle_start(websocket: WebSocket, session_id: str, data: dict):
     session = manager.get_session(session_id)
-    if not session or not session.room_id:
+    if not session:
         return
 
-    try:
-        await room_service.start_game(session.room_id, session.user_id)
+    if session.room_id:
+        try:
+            await room_service.start_game(session.room_id, session.user_id)
+                
+            session.started = True
 
-        await manager.broadcast(session_id, {
-            "type": "game_start",
-            "map_id": session.map_id,
-            "room_id": session.room_id
-        })
+            await manager.broadcast(session_id, {
+                "type": "game_start",
+                "map_id": session.map_id,
+                "room_id": session.room_id
+            })
+
+        except HTTPException as e:
+            await websocket.send_json({
+                "type": "error",
+                "message": e.detail
+            })
+            return
         
+    try:
+        async with in_transaction():
+            stat, _ = await Stat.get_or_create(
+                user_id=session.user_id,
+                map_id=session.map_id
+            )
+            stat.attempts += 1
+            await stat.save()
+
+            await Map.filter(id=session.map_id).update(
+                total_attempts=F("total_attempts") + 1
+            )
+            await User.filter(id=session.user_id).update(
+                total_attempts=F("total_attempts") + 1
+            )
+
         await websocket.send_json({
             "type": "game_start_success"
         })
-                
-    except HTTPException as e:
-        await websocket.send_json({
-            "type": "error", 
-            "message": e.detail
-        })
+
     except Exception:
         await websocket.send_json({
-            "type": "error", 
+            "type": "error",
             "message": "error while starting game"
         })

@@ -54,9 +54,9 @@ class RoomService:
 
         async with rd.pipeline(transaction=True) as pipe:
             pipe.hset(room_key, mapping=room_data)
-            pipe.expire(room_key, 3600)
+            pipe.expire(room_key, 7200)
             pipe.hset(players_key, str(host_id), json.dumps(player_data))
-            pipe.expire(players_key, 3600)
+            pipe.expire(players_key, 7200)
             pipe.sadd("lobby:rooms", room_id)
             await pipe.execute()
         
@@ -239,12 +239,25 @@ class RoomService:
     @staticmethod
     async def finish_game(room_id: str):
         room_key = RoomService._room_key(room_id)
+        players_key = RoomService._room_players_key(room_id)
+
         room_data = await rd.hgetall(room_key)
-        
         if not room_data:
             return
-        
-        await rd.hset(room_key, "status", "waiting")
+
+        players = await rd.hgetall(players_key)
+        if not players:
+            return
+
+        async with rd.pipeline(transaction=True) as pipe:
+            pipe.hset(room_key, "status", "waiting")
+
+            for uid, p in players.items():
+                data = json.loads(p)
+                data["is_ready"] = False
+                pipe.hset(players_key, uid, json.dumps(data))
+
+            await pipe.execute()
     
         
 room_service = RoomService()
@@ -294,5 +307,13 @@ async def check_and_finish_game(session_id: str):
         await manager.broadcast_to_group(group_key, finish_message)
         
         await room_service.finish_game(session.room_id)
+
+        for s in all_sessions:
+          s.started = False
+          s.is_cleared = False
+          s.clear_time = None
+          s.place = None
+          s.deaths = 0
+          s.start_time = time.time()
         
         logger.info(f"Game auto-finished: room {session.room_id} - all players cleared")

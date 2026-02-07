@@ -82,9 +82,9 @@ async def websocket_game_handler(websocket: WebSocket, map_id: int, token: str, 
             await websocket.close(code=1008)
             return
         
-        if room["status"] != "playing":
+        if room["status"] not in ("waiting", "playing"):
             await websocket.send_json(
-                ErrorResponse(message="Game not started").model_dump()
+                ErrorResponse(message="Room not available").model_dump()
             )
             await websocket.close(code=1008)
             return
@@ -108,14 +108,6 @@ async def websocket_game_handler(websocket: WebSocket, map_id: int, token: str, 
     await manager.connect(websocket, session_id, map_id, user.id, user.username, room_id)
 
     try:
-        async with in_transaction():
-            stat, _ = await Stat.get_or_create(user_id=user.id, map_id=map_id)
-            stat.attempts += 1
-            await stat.save()
-
-            await Map.filter(id=map_id).update(total_attempts=F("total_attempts") + 1)
-            await User.filter(id=user.id).update(total_attempts=F("total_attempts") + 1)
-
         await websocket.send_json(
             SessionStarted(
                 session_id=session_id, 

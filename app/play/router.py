@@ -71,7 +71,6 @@ async def join_room(
     room_id: str, 
     current_user: User = Depends(get_current_user)
 ):
-    # ✅ await 추가
     rank = await ranking_service.get_rank(current_user.id)
     
     info = {
@@ -79,12 +78,3 @@ async def join_room(
         "rank": rank or 0
     }
     return await room_service.join_room(room_id, current_user.id, current_user.username, info)
-
-# 방 나가기
-@router.post("/rooms/{room_id}/leave")
-async def leave_room(
-    room_id: str,
-    current_user: User = Depends(get_current_user),
-):
-    result = await room_service.leave_room(room_id, current_user.id)
-    return result
