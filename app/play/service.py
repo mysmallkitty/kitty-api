@@ -233,5 +233,16 @@ class RoomService:
                 )
         
         await rd.hset(room_key, "status", "playing")
+
+    @staticmethod
+    async def finish_game(room_id: str):
+        room_key = RoomService._room_key(room_id)
+        room_data = await rd.hgetall(room_key)
+        
+        if not room_data:
+            return
+        
+        await rd.hset(room_key, "status", "waiting")
+    
         
 room_service = RoomService()

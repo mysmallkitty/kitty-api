@@ -5,12 +5,11 @@ from pydantic import BaseModel
 class WebSocketResponse(BaseModel):
     type: str
 
-
 class SessionStarted(WebSocketResponse):
     type: Literal["session_started"] = "session_started"
     session_id: str
     map_id: int
-
+    room_id: str | None = None 
 
 class DeathAck(WebSocketResponse):
     type: Literal["death_ack"] = "death_ack"

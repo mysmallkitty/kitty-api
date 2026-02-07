@@ -80,7 +80,7 @@ class GameWebSocketManager:
                 "type": "peer_joined", 
                 "user_id": user_id,
                 "username": username,
-                "message": f"{username}님이 입장하셨습니다."
+                "message": f"{username}joined the game!"
             }, 
             exclude_session=session_id
         )
@@ -95,21 +95,26 @@ class GameWebSocketManager:
         username = session.username
         map_id = session.map_id
 
+        group_key = (map_id, room_id)
+        
         if room_id:
             await room_service.leave_room(room_id, user_id)
-
-            group_key = (map_id, room_id)
+            
             await self.broadcast_to_group(group_key, {
                 "type": "player_left",
                 "user_id": user_id,
                 "username": username,
-                "message": f"{username}님이 방을 나갔습니다."
+                "message": f"{username}left the game!"
             }, exclude_session=session_id)
 
-        group_key = (map_id, room_id) if room_id else f"solo_{map_id}"
         self.game_groups[group_key].discard(session_id)
+        
+        if not self.game_groups[group_key]:
+            del self.game_groups[group_key]
+        
         self.active_sessions.pop(session_id, None)
         self.active_websockets.pop(session_id, None)
+        self.last_position_time.pop(session_id, None)
 
     async def broadcast(self, session_id: str, message: dict):
         session = self.get_session(session_id)
@@ -260,21 +265,28 @@ async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
 @manager.handler("update_ready")
 async def handle_ready(websocket: WebSocket, session_id: str, data: dict):
     session = manager.get_session(session_id)
-    if not session or not session.room_id:
+    if not session:
+        await websocket.send_json({"type": "error", "message": "Invalid session"})
         return
-
-    is_ready = data.get("is_ready", False)
-    await room_service.update_ready_status(session.room_id, session.user_id, is_ready)
     
-    await manager.broadcast(session_id, {
-        "type": "ready_status_changed",
-        "user_id": session.user_id,
-        "is_ready": is_ready
-    })
-    await websocket.send_json({
-        "type": "ready_success", 
-        "is_ready": is_ready
-    })
+    if not session.room_id:
+        await websocket.send_json({"type": "error", "message": "Not in a room"})
+        return
+    is_ready = data.get("is_ready", False)
+    try:
+        await room_service.update_ready_status(session.room_id, session.user_id, is_ready)
+        await manager.broadcast(session_id, {
+            "type": "ready_status_changed",
+            "user_id": session.user_id,
+            "username": session.username,
+            "is_ready": is_ready
+        })
+        await websocket.send_json({
+            "type": "ready_success", 
+            "is_ready": is_ready
+        })
+    except HTTPException as e:
+        await websocket.send_json({"type": "error", "message": e.detail})
 
 @manager.handler("kick_player")
 async def handle_kick(websocket: WebSocket, session_id: str, data: dict):
