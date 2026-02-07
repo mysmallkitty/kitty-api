@@ -158,9 +158,6 @@ manager = GameWebSocketManager()
 
 @manager.handler("position")
 async def handle_position(websocket: WebSocket, session_id: str, data: dict):
- 
-    if not session.started:
-        return
     try:
         PositionMessage.model_validate(data)
     except ValidationError:
@@ -172,6 +169,8 @@ async def handle_position(websocket: WebSocket, session_id: str, data: dict):
     manager.last_position_time[session_id] = current_time
 
     session = manager.get_session(session_id)
+    if not session.started:
+        return
     if session:
         pos = data.get("pos", {})
         session.last_dir = pos.get("dir")
@@ -353,50 +352,42 @@ async def handle_kick(websocket: WebSocket, session_id: str, data: dict):
 @manager.handler("start_game")
 async def handle_start(websocket: WebSocket, session_id: str, data: dict):
     session = manager.get_session(session_id)
-    if not session:
-        return
+    if not session: return
 
+    target_sessions = []
     if session.room_id:
         try:
             await room_service.start_game(session.room_id, session.user_id)
-                
-            session.started = True
+            group_key = (session.map_id, session.room_id)
+            target_sessions = [manager.get_session(sid) for sid in manager.game_groups.get(group_key, [])]
+        except HTTPException as e:
+            await websocket.send_json({"type": "error", "message": e.detail})
+            return
+    else:
+        target_sessions = [session]
 
+    try:
+        async with in_transaction():
+            for s in target_sessions:
+                if not s: continue
+                s.started = True 
+                
+                stat, _ = await Stat.get_or_create(user_id=s.user_id, map_id=s.map_id)
+                stat.attempts += 1
+                await stat.save()
+
+                await User.filter(id=s.user_id).update(total_attempts=F("total_attempts") + 1)
+            
+            await Map.filter(id=session.map_id).update(total_attempts=F("total_attempts") + len(target_sessions))
+
+        if session.room_id:
             await manager.broadcast(session_id, {
                 "type": "game_start",
                 "map_id": session.map_id,
                 "room_id": session.room_id
             })
-
-        except HTTPException as e:
-            await websocket.send_json({
-                "type": "error",
-                "message": e.detail
-            })
-            return
         
-    try:
-        async with in_transaction():
-            stat, _ = await Stat.get_or_create(
-                user_id=session.user_id,
-                map_id=session.map_id
-            )
-            stat.attempts += 1
-            await stat.save()
+        await websocket.send_json({"type": "game_start_success"})
 
-            await Map.filter(id=session.map_id).update(
-                total_attempts=F("total_attempts") + 1
-            )
-            await User.filter(id=session.user_id).update(
-                total_attempts=F("total_attempts") + 1
-            )
-
-        await websocket.send_json({
-            "type": "game_start_success"
-        })
-
-    except Exception:
-        await websocket.send_json({
-            "type": "error",
-            "message": "error while starting game"
-        })
+    except Exception as e:
+        await websocket.send_json({"type": "error", "message": "server status update error"})
