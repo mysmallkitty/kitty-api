@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 from pydantic import BaseModel
 
 
@@ -87,3 +87,19 @@ class GameClearRequest(BaseModel):
 class UserEndSessionMessage(BaseModel):
     type: str = "UserEndSession"
     user_id: int
+
+class RoomCreate(BaseModel):
+    title: str
+    map_id: int
+    max_players: int = 4
+
+class RoomInfo(BaseModel):
+    id: str
+    title: str
+    map_id: int
+    host_id: int
+    host_name: str
+    players: List[dict]
+    max_players: int
+    status: str
+    created_at: float

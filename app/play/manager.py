@@ -3,7 +3,7 @@ import logging
 from collections import defaultdict
 from typing import Dict, Set
 
-from fastapi import WebSocket
+from fastapi import HTTPException, WebSocket
 from pydantic import ValidationError
 from tortoise.expressions import F
 from tortoise.transactions import in_transaction
@@ -21,6 +21,7 @@ from app.play.schemas import (
 from app.records.models import Record, Stat
 from app.records.pp.calculate_pp import calculate_pp
 from app.records.services import pp_service, clear_service
+from app.play.service import room_service
 from app.records.redis_services import ranking_service
 from app.maps.models import Map
 from app.user.models import User
@@ -29,9 +30,11 @@ logger = logging.getLogger(__name__)
 
 
 class GameSession:
-    def __init__(self, map_id: int, user_id: int):
+    def __init__(self, map_id: int, user_id: int, username:str, room_id: str | None = None):
         self.map_id = map_id
         self.user_id = user_id
+        self.username = username
+        self.room_id = room_id
         self.deaths = 0
         self.last_dir: float | None = None
         self.start_time = time.time()
@@ -48,7 +51,7 @@ class GameWebSocketManager:
         self.active_sessions: Dict[str, GameSession] = {}
         self.last_position_time: Dict[str, float] = defaultdict(float)
         self.active_websockets: Dict[str, WebSocket] = {}
-        self.map_sessions: Dict[int, Set[str]] = defaultdict(set)
+        self.game_groups: Dict[tuple, Set[str]] = defaultdict(set)
 
     def handler(self, message_type: str):
         def decorator(func):
@@ -65,42 +68,77 @@ class GameWebSocketManager:
             return
         await handler(websocket, session_id, data)
 
-    async def connect(self, websocket: WebSocket, session_id: str, map_id: int, user_id: int):
-        self.active_sessions[session_id] = GameSession(map_id, user_id)
+    async def connect(self, websocket: WebSocket, session_id: str, map_id: int, user_id: int, username: str, room_id: str | None = None):
+        self.active_sessions[session_id] = GameSession(map_id, user_id, username, room_id)
         self.active_websockets[session_id] = websocket
-        self.map_sessions[map_id].add(session_id)
-        await self.broadcast(session_id, {"type": "peer_joined", "user_id": user_id})
+        
+        group_key = (map_id, room_id)
+        self.game_groups[group_key].add(session_id)
+        await self.broadcast_to_group(
+            group_key=group_key, 
+            message={
+                "type": "peer_joined", 
+                "user_id": user_id,
+                "username": username,
+                "message": f"{username}님이 입장하셨습니다."
+            }, 
+            exclude_session=session_id
+        )
 
     async def disconnect(self, session_id: str):
         session = self.get_session(session_id)
         if not session:
             return
-        
-        await self.broadcast(session_id, {"type": "peer_left", "user_id": session.user_id})
+
+        room_id = session.room_id
+        user_id = session.user_id
+        username = session.username
         map_id = session.map_id
-        if map_id in self.map_sessions:
-            self.map_sessions[map_id].discard(session_id)
-            if not self.map_sessions[map_id]:
-                del self.map_sessions[map_id]
+
+        if room_id:
+            await room_service.leave_room(room_id, user_id)
+
+            group_key = (map_id, room_id)
+            await self.broadcast_to_group(group_key, {
+                "type": "player_left",
+                "user_id": user_id,
+                "username": username,
+                "message": f"{username}님이 방을 나갔습니다."
+            }, exclude_session=session_id)
+
+        group_key = (map_id, room_id) if room_id else f"solo_{map_id}"
+        self.game_groups[group_key].discard(session_id)
         self.active_sessions.pop(session_id, None)
         self.active_websockets.pop(session_id, None)
-        self.last_position_time.pop(session_id, None)
 
     async def broadcast(self, session_id: str, message: dict):
         session = self.get_session(session_id)
-        if not session or session.map_id not in self.map_sessions:
+        if not session:
             return
-        for other_session_id in list(self.map_sessions[session.map_id]):
+        group_key = (session.map_id, session.room_id)
+        
+        for other_session_id in list(self.game_groups[group_key]):
             if other_session_id == session_id:
                 continue
             ws = self.active_websockets.get(other_session_id)
-            if not ws:
+            if ws:
+                try:
+                    await ws.send_json(message)
+                except Exception as e:
+                    logger.warning(f"Broadcast failed: {other_session_id}, {e}")
+                    await self.disconnect(other_session_id)
+
+    async def broadcast_to_group(self, group_key: tuple, message: dict, exclude_session: str | None = None):
+        for sid in list(self.game_groups.get(group_key, [])):
+            if sid == exclude_session:
                 continue
-            try:
-                await ws.send_json(message)
-            except Exception as e:
-                logger.warning(f"Broadcast failed: {other_session_id}, {e}")
-                await self.disconnect(other_session_id)
+                
+            ws = self.active_websockets.get(sid)
+            if ws:
+                try:
+                    await ws.send_json(message)
+                except Exception:
+                    await self.disconnect(sid)
 
     def get_session(self, session_id: str) -> GameSession | None:
         return self.active_sessions.get(session_id)
@@ -218,3 +256,81 @@ async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
             time_diff=time_diff
         ).model_dump()
     )
+
+@manager.handler("update_ready")
+async def handle_ready(websocket: WebSocket, session_id: str, data: dict):
+    session = manager.get_session(session_id)
+    if not session or not session.room_id:
+        return
+
+    is_ready = data.get("is_ready", False)
+    await room_service.update_ready_status(session.room_id, session.user_id, is_ready)
+    
+    await manager.broadcast(session_id, {
+        "type": "ready_status_changed",
+        "user_id": session.user_id,
+        "is_ready": is_ready
+    })
+    await websocket.send_json({
+        "type": "ready_success", 
+        "is_ready": is_ready
+    })
+
+@manager.handler("kick_player")
+async def handle_kick(websocket: WebSocket, session_id: str, data: dict):
+    session = manager.get_session(session_id)
+    target_user_id = data.get("target_id")
+    
+    if not session or not session.room_id or not target_user_id:
+        return
+
+    try:
+        await room_service.kick_player(session.room_id, session.user_id, target_user_id)
+        
+        await manager.broadcast(session_id, {
+            "type": "player_kicked",
+            "target_id": target_user_id
+        })
+        
+        for sid, s_obj in list(manager.active_sessions.items()):
+            if s_obj.user_id == target_user_id and s_obj.room_id == session.room_id:
+                target_ws = manager.active_websockets.get(sid)
+                if target_ws:
+                    await target_ws.send_json({"type": "kicked_by_host"})
+                    await target_ws.close(code=1000)
+                break
+                
+    except HTTPException as e:
+        await websocket.send_json({"type": "error", "message": e.detail})
+    except Exception:
+        await websocket.send_json({"type": "error", "message": "error while kicking player"})
+
+@manager.handler("start_game")
+async def handle_start(websocket: WebSocket, session_id: str, data: dict):
+    session = manager.get_session(session_id)
+    if not session or not session.room_id:
+        return
+
+    try:
+        await room_service.start_game(session.room_id, session.user_id)
+
+        await manager.broadcast(session_id, {
+            "type": "game_start",
+            "map_id": session.map_id,
+            "room_id": session.room_id
+        })
+        
+        await websocket.send_json({
+            "type": "game_start_success"
+        })
+                
+    except HTTPException as e:
+        await websocket.send_json({
+            "type": "error", 
+            "message": e.detail
+        })
+    except Exception:
+        await websocket.send_json({
+            "type": "error", 
+            "message": "error while starting game"
+        })

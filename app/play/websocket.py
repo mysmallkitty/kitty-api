@@ -11,6 +11,9 @@ from app.user.models import User
 from app.user.service.token import decode_token
 from app.play.manager import manager
 from app.play.schemas import SessionStarted, ErrorResponse
+from app.play.service import room_service
+
+
 
 
 async def verify_websocket_token(token: str):
@@ -50,7 +53,7 @@ async def handle_session_end(session_id: str):
         )
 
 
-async def websocket_game_handler(websocket: WebSocket, map_id: int, token: str):
+async def websocket_game_handler(websocket: WebSocket, map_id: int, token: str, room_id: str | None = None):
     await websocket.accept()
 
     try:
@@ -69,13 +72,42 @@ async def websocket_game_handler(websocket: WebSocket, map_id: int, token: str):
         await websocket.send_json(ErrorResponse(message="Map not found").model_dump())
         await websocket.close(code=1008)
         return
+    
+    if room_id:
+        room = await room_service.get_room(room_id)
+        if not room:
+            await websocket.send_json(
+                ErrorResponse(message="Room not found").model_dump()
+            )
+            await websocket.close(code=1008)
+            return
+        
+        if room["status"] != "playing":
+            await websocket.send_json(
+                ErrorResponse(message="Game not started").model_dump()
+            )
+            await websocket.close(code=1008)
+            return
+        
+        player_ids = [p["user_id"] for p in room["players"]]
+        if user.id not in player_ids:
+            await websocket.send_json(
+                ErrorResponse(message="Not a participant").model_dump()
+            )
+            await websocket.close(code=1008)
+            return
+        
+        if room["map_id"] != map_id:
+            await websocket.send_json(
+                ErrorResponse(message="Map ID mismatch").model_dump()
+            )
+            await websocket.close(code=1008)
+            return
 
-    # 세션 생성
-    session_id = f"{user.id}_{map_id}_{int(time.time() * 1000)}"
-    await manager.connect(websocket, session_id, map_id, user.id)
+    session_id = f"{user.id}_{map_id}_{room_id or 'solo'}_{int(time.time() * 1000)}"
+    await manager.connect(websocket, session_id, map_id, user.id, user.username, room_id)
 
     try:
-        # 맵 시작하면 attemtps 증가 (user, map)
         async with in_transaction():
             stat, _ = await Stat.get_or_create(user_id=user.id, map_id=map_id)
             stat.attempts += 1
@@ -84,23 +116,24 @@ async def websocket_game_handler(websocket: WebSocket, map_id: int, token: str):
             await Map.filter(id=map_id).update(total_attempts=F("total_attempts") + 1)
             await User.filter(id=user.id).update(total_attempts=F("total_attempts") + 1)
 
-        # 시작 확인 전송
-        await websocket.send_json(SessionStarted(session_id=session_id, map_id=map_id).model_dump())
+        await websocket.send_json(
+            SessionStarted(
+                session_id=session_id, 
+                map_id=map_id,
+                room_id=room_id
+            ).model_dump()
+        )
 
-        # 메시지 수신 루프
         while True:
             data = await websocket.receive_json()
             await manager.dispatch(websocket, session_id, data)
 
     except WebSocketDisconnect:
-        # 연결 종료 - 데스 카운트 DB 저장
         await handle_session_end(session_id)
 
     except Exception as e:
-        # 예외 발생 시에도 세션 저장
         await handle_session_end(session_id)
         raise e
 
     finally:
-        # 세션 정리
         await manager.disconnect(session_id)
