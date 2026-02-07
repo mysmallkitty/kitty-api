@@ -21,7 +21,7 @@ from app.play.schemas import (
 from app.records.models import Record, Stat
 from app.records.pp.calculate_pp import calculate_pp
 from app.records.services import pp_service, clear_service
-from app.play.service import room_service
+from app.play.service import check_and_finish_game, room_service
 from app.records.redis_services import ranking_service
 from app.maps.models import Map
 from app.user.models import User
@@ -40,6 +40,7 @@ class GameSession:
         self.start_time = time.time()
         self.clear_time = None
         self.is_cleared = False
+        self.place = None
 
 
 POSITION_THROTTLE = 0.01
@@ -148,7 +149,6 @@ class GameWebSocketManager:
     def get_session(self, session_id: str) -> GameSession | None:
         return self.active_sessions.get(session_id)
 
-
 manager = GameWebSocketManager()
 
 
@@ -228,6 +228,20 @@ async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
     session.clear_time = clear_time
     session.is_cleared = True
 
+    if session.room_id:
+        group_key = (session.map_id, session.room_id)
+        cleared_sessions = []
+    
+        for sid in manager.game_groups.get(group_key, []):
+            s = manager.get_session(sid)
+            if s and s.is_cleared and s.clear_time is not None:
+                cleared_sessions.append(s)
+
+        cleared_sessions.sort(key=lambda x: x.clear_time)
+        
+        for place, s in enumerate(cleared_sessions, start=1):
+            s.place = place
+
     map_obj = await Map.get(id=session.map_id)
     current_pp = pp_service.calculate_pp_for_clear(map_obj, record_deaths, clear_time)
 
@@ -251,6 +265,16 @@ async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
     rank_diff = (rank_before - rank_after) if (rank_before is not None and rank_after is not None) else 0
     time_diff = (old_best_time - clear_time) if old_best_time is not None else None
 
+    if session.room_id:
+        await manager.broadcast(session_id, {
+            "type": "player_finished",
+            "user_id": session.user_id,
+            "username": session.username,
+            "place": session.place,
+            "clear_time": clear_time,
+            "deaths": record_deaths
+        })
+    
     await websocket.send_json(
         ClearAck(
             clear_time=clear_time,
@@ -261,6 +285,8 @@ async def handle_clear(websocket: WebSocket, session_id: str, data: dict):
             time_diff=time_diff
         ).model_dump()
     )
+    if session.room_id:
+        await check_and_finish_game(session_id)
 
 @manager.handler("update_ready")
 async def handle_ready(websocket: WebSocket, session_id: str, data: dict):

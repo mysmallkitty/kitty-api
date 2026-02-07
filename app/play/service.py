@@ -1,10 +1,12 @@
 import json
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, logger
 from pydantic import BaseModel
 import redis.asyncio as redis
 import uuid
 import time
 from typing import List, Optional
+
+from app.play import manager
 
 rd = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
@@ -246,3 +248,51 @@ class RoomService:
     
         
 room_service = RoomService()
+
+async def check_and_finish_game(session_id: str):
+    session = manager.get_session(session_id)
+    if not session or not session.room_id:
+        return
+    
+    group_key = (session.map_id, session.room_id)
+    all_sessions = []
+    
+    for sid in manager.game_groups.get(group_key, []):
+        s = manager.get_session(sid)
+        if s:
+            all_sessions.append(s)
+    
+    if not all_sessions:
+        return
+    
+    all_cleared = all(s.is_cleared for s in all_sessions)
+    
+    if all_cleared:
+        results = []
+        for s in all_sessions:
+            player_result = {
+                "user_id": s.user_id,
+                "username": s.username,
+                "deaths": s.deaths,
+                "is_cleared": s.is_cleared,
+                "place": s.place or 0,
+                "clear_time": s.clear_time,
+                "play_time": int(time.time() - s.start_time)
+            }
+            results.append(player_result)
+        
+        results.sort(key=lambda x: x["clear_time"] if x["clear_time"] else float('inf'))
+        
+        finish_message = {
+            "type": "game_finished",
+            "results": results,
+            "map_id": session.map_id,
+            "room_id": session.room_id,
+            "reason": "all_cleared" 
+        }
+        
+        await manager.broadcast_to_group(group_key, finish_message)
+        
+        await room_service.finish_game(session.room_id)
+        
+        logger.info(f"Game auto-finished: room {session.room_id} - all players cleared")
