@@ -80,7 +80,7 @@ class GameWebSocketManager:
                 "type": "peer_joined", 
                 "user_id": user_id,
                 "username": username,
-                "message": f"{username}joined the game!"
+                "message": f"{username} joined the game!"
             }, 
             exclude_session=session_id
         )
@@ -104,7 +104,7 @@ class GameWebSocketManager:
                 "type": "player_left",
                 "user_id": user_id,
                 "username": username,
-                "message": f"{username}left the game!"
+                "message": f"{username} left the game!"
             }, exclude_session=session_id)
 
         self.game_groups[group_key].discard(session_id)
